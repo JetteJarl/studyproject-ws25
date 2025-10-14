@@ -205,3 +205,23 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+
+
+# Tex / for report
+# ignore pdf file
+doc.pdf
+
+# ignore latex artefacts
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.gz
+
+
+# VS Code
+.vscode/
