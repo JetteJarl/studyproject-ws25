@@ -1,1 +1,1 @@
-# studyproject-ws25
+# Automated Counterstatement Generation against Misinformation via Generative AI
