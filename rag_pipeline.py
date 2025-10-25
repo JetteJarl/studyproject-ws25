@@ -11,5 +11,5 @@ llm = ChatOllama(model="llama3")
 chain = prompt | llm
 answer = chain.invoke({
     "input": "What is the capital of France?",
-})
-print(answer.content)
+}).content
+print(answer)
