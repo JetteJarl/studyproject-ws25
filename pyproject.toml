@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Add your description here"
 requires-python = ">=3.11"
 dependencies = [
+    "beautifulsoup4>=4.14.2",
     "huggingface-hub>=0.36.0",
     "langchain>=1.0.2",
     "langchain-community>=0.4",
