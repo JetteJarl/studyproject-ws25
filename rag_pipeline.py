@@ -15,13 +15,12 @@ def build_rag_pipeline(
     chunk_overlap: int = 200,
     retriever_k: int = 3
 ):
-
-    docs = load_web_page(source)
-    chunks: list[Document] = split_documents(docs, chunk_size=chunk_size, chunk_overlap=chunk_overlap)
     embeddings_model = get_embeddings_model(embed_model_name)
 
     vectorstore = load_vectorstore(embeddings_model, persist_directory)
     if vectorstore is None:
+        docs = load_web_page(source)
+        chunks: list[Document] = split_documents(docs, chunk_size=chunk_size, chunk_overlap=chunk_overlap)
         vectorstore = save_vectorstore(chunks, embeddings_model, persist_directory)
 
     retriever = get_retriever(vectorstore, k=retriever_k)
