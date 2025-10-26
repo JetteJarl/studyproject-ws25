@@ -8,6 +8,7 @@ def format_context(docs: list[Document]) -> str:
     return "\n\n".join(d.page_content for d in docs)
 
 def build_llm(model: str):
+    print("Loading local model...")
     llm = ChatOllama(model=model)
     prompt = ChatPromptTemplate([
         SystemMessagePromptTemplate.from_template("You are a helpful assistant. Answer using provided context if relevant."),
