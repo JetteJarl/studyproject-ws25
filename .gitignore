@@ -225,3 +225,6 @@ doc.pdf
 
 # VS Code
 .vscode/
+
+# Chroma database
+/chroma_db/
