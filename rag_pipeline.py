@@ -1,15 +1,40 @@
-from langchain_ollama import ChatOllama
-from langchain_core.prompts.chat import HumanMessagePromptTemplate, SystemMessagePromptTemplate, ChatPromptTemplate
+from typing import Optional
+from langchain_core.documents import Document
 
-prompt = ChatPromptTemplate([
-    SystemMessagePromptTemplate.from_template("You are a helpful assistant. Answer the question as best you can."),
-    HumanMessagePromptTemplate.from_template("{input}"),
-])
+from document_loader import load_web_page
+from document_splitter import split_documents
+from document_embedding import get_embeddings_model
+from vector_database import build_vectorstore, get_retriever
+from llm_model import build_llm, generate_answer
 
-llm = ChatOllama(model="llama3")
+def build_rag_pipeline(
+    *,
+    source: str,
+    embed_model_name: str,
+    chunk_size: int = 1000,
+    chunk_overlap: int = 200,
+    retriever_k: int = 3,
+    persist_directory: Optional[str] = None,
+):
 
-chain = prompt | llm
-answer = chain.invoke({
-    "input": "What is the capital of France?",
-}).content
-print(answer)
+    docs = load_web_page(source)
+    chunks: list[Document] = split_documents(docs, chunk_size=chunk_size, chunk_overlap=chunk_overlap)
+    embeddings_model = get_embeddings_model(embed_model_name)
+    vectorstore = build_vectorstore(chunks, embeddings_model, persist_directory=persist_directory)
+    retriever = get_retriever(vectorstore, k=retriever_k)
+    return retriever
+
+if __name__ == "__main__":
+    retriever = build_rag_pipeline(
+        source="https://en.wikipedia.org/wiki/COVID-19",
+        chunk_size=1000,
+        chunk_overlap=200,
+        embed_model_name="sentence-transformers/all-mpnet-base-v2",
+        retriever_k=3,
+        persist_directory=None,
+    )
+
+    chain = build_llm(model="llama3")
+    question = "Is the vaccine effective?"
+    answer = generate_answer(question, retriever=retriever, chain=chain)
+    print(answer)

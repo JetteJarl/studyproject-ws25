@@ -1,15 +1,11 @@
-from langchain_community.document_loaders import TextLoader
+from typing import List
 from langchain_community.document_loaders import WebBaseLoader
+from langchain_core.documents import Document
 
-txt_loader = TextLoader("climate_change.txt")
-txt_documents = txt_loader.load()
-print(txt_documents)
-print(txt_documents[0].page_content)
-
-web_loader = WebBaseLoader("https://en.wikipedia.org/wiki/COVID-19")
-web_documents = web_loader.load()
-print(web_documents)
-print(web_documents[0].page_content)
+def load_web_page(url: str) -> List[Document]:
+    loader = WebBaseLoader(url)
+    document = loader.load()
+    return document
 
 # there are many more loaders provided by langchain
-# like e.g. pdf, csv, etc.
+# like e.g. txt, pdf, csv, etc.

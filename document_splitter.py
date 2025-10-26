@@ -1,16 +1,20 @@
-from langchain_community.document_loaders import WebBaseLoader
+from typing import List, Optional
+from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-web_loader = WebBaseLoader("https://en.wikipedia.org/wiki/COVID-19")
-web_documents = web_loader.load()
-
-text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200, separators=["\n\n", "\n", "", " "])
-chunks = text_splitter.split_documents(web_documents)
-print("Number of text chunks: ", len(chunks))
-
-for chunk in chunks:
-    print(f"Chunk {chunks.index(chunk)} size: {len(chunk.page_content)}")
-    print(chunk.page_content)
+def split_documents(
+    docs: List[Document],
+    chunk_size: int = 1000,
+    chunk_overlap: int = 200,
+    separators: Optional[list[str]] = None,
+) -> List[Document]:
+    if separators is None:
+        separators = ["\n\n", "\n", "", " "]
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_size=chunk_size, chunk_overlap=chunk_overlap, separators=separators
+    )
+    chunks = splitter.split_documents(docs)
+    return chunks
 
 # there are many more splitters provided by langchain
 # like e.g. html, markdown, json etc.
