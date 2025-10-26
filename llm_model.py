@@ -25,6 +25,7 @@ def generate_answer(
 ):
     docs = retrieve_docs(retriever, question)
     context = format_context(docs)
+    print("Generating answer...")
     answer = (chain.invoke({"question": question, "context": context})).content
     return answer
 
