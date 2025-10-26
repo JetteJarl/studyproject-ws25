@@ -9,7 +9,7 @@ def split_documents(
     separators: Optional[list[str]] = None,
 ) -> List[Document]:
     if separators is None:
-        separators = ["\n\n", "\n", "", " "]
+        separators = ["\n\n", "\n", " ", ""]
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=chunk_size, chunk_overlap=chunk_overlap, separators=separators
     )
