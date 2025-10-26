@@ -39,5 +39,5 @@ if __name__ == "__main__":
 
     chain = build_llm(model="llama3")
     question = "Is the vaccine effective?"
-    answer = generate_answer(question, retriever=retriever, chain=chain)
+    answer = generate_answer(question=question, retriever=retriever, chain=chain)
     print(answer)

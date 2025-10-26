@@ -18,8 +18,8 @@ def build_llm(model: str):
     return chain
 
 def generate_answer(
-    question: str,
     *,
+    question: str,
     retriever,
     chain,
 ):
