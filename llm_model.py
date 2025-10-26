@@ -11,7 +11,9 @@ def build_llm(model: str):
     print("Loading local model...")
     llm = ChatOllama(model=model)
     prompt = ChatPromptTemplate([
-        SystemMessagePromptTemplate.from_template("You are a helpful assistant. Answer using provided context if relevant."),
+        SystemMessagePromptTemplate.from_template(
+            "You are a helpful assistant. Answer by using the provided context."
+            "If you are unsure of the answer, just say that you don't know and don't make up an answer."),
         HumanMessagePromptTemplate.from_template("Question: {question}\n\nContext:\n{context}"),
     ])
     chain = prompt | llm
