@@ -2,7 +2,7 @@ from langchain_core.documents import Document
 
 from document_loader import load_web_page
 from document_splitter import split_documents
-from document_embedding import get_embeddings_model
+from embed_model import get_embeddings_model
 from vector_database import save_vectorstore, load_vectorstore, get_retriever
 from llm_model import build_llm, generate_answer
 
