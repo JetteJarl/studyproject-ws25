@@ -12,3 +12,8 @@
 4) Run the following command to download the latest version of **Llama 3**: ``ollama pull llama3``.
 5) If you want to use the model in the terminal, run the following command to call the **Llama 3** model: ``ollama run llama3``.
 Otherwise, just run the RAG pipeline. Ollama must run for model inference. Else you will get an error.
+
+## Attention
+If the VRAM of your GPU is not sufficient (e.g. 2 GB), Llama 3 will not work because it is 4.7 GB big.<br>
+Instead, you could try a smaller model, e.g. **TinyLlama**.<br>
+Run this ``ollama pull tinyllama`` and you should be good to go!
