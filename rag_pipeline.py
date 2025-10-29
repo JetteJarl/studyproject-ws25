@@ -1,4 +1,3 @@
-from langchain_core.documents import Document
 import streamlit as st
 
 from document_loader import load_web_page
@@ -7,24 +6,56 @@ from embed_model import get_embeddings_model
 from vector_database import save_vectorstore, load_vectorstore, get_retriever
 from llm_model import build_llm, generate_answer
 
-st.set_page_config(page_title="RAG Pipeline Prototype", page_icon="🤖", layout="wide")
-st.title("Automated Counterstatement Generation against Misinformation via Generative AI")
+def _init_page() -> None:
+    """
+    Configure and render the Streamlit page header.
+    """
+    st.set_page_config(
+        page_title="RAG Pipeline Prototype",
+        page_icon="🤖",
+        layout="wide",
+    )
+    st.title("Automated Counterstatement Generation against Misinformation via Generative AI")
 
-url = st.text_input(label="Enter a URL to load:", value="https://en.wikipedia.org/wiki/COVID-19")
+def main() -> None:
+    """
+    Entry point for the Streamlit RAG prototype.
 
-embeddings_model = get_embeddings_model("sentence-transformers/all-mpnet-base-v2")
-datastore_name = "chroma_db"
+    Steps:
+    - Read URL input.
+    - Initialize embeddings and vectorstore (load existing or build from URL).
+    - Build retriever and LLM chain.
+    - Accept a user query and generate an answer using retrieved context.
+    """
+    _init_page()
 
-vectorstore = load_vectorstore(embeddings_model, datastore_name)
-if vectorstore is None:
-    docs = load_web_page(url)
-    chunks: list[Document] = split_documents(docs, chunk_size=1000, chunk_overlap=200)
-    vectorstore = save_vectorstore(chunks, embeddings_model, datastore_name)
+    # Input: URL to scrape/load and index into the vector store if not present
+    url = st.text_input(label="Enter a URL to load:", value="https://en.wikipedia.org/wiki/COVID-19")
 
-retriever = get_retriever(vectorstore, k=3)
-st.success("RAG Pipeline initialized!")
+    # Initialize the embedding model name used for both indexing and retrieval
+    embeddings_model = get_embeddings_model("sentence-transformers/all-mpnet-base-v2")
+    datastore_name = "chroma_db"
 
-chain = build_llm(model="llama3")
-query = st.text_input(label="Say something: ", value="Is the vaccine effective?")
-answer = generate_answer(question=query, retriever=retriever, chain=chain)
-st.write("Answer: ", answer)
+    # Attempt to load an existing vectorstore; if not found, ingest from the URL
+    vectorstore = load_vectorstore(embeddings_model, datastore_name)
+    if vectorstore is None:
+        # Load and split documents before storing
+        docs = load_web_page(url)
+        # Chunking helps the retrieval quality and token efficiency
+        chunks = split_documents(docs, chunk_size=1000, chunk_overlap=200)
+        vectorstore = save_vectorstore(chunks, embeddings_model, datastore_name)
+
+    # Configure retriever (k controls number of top documents to fetch)
+    retriever = get_retriever(vectorstore, k=3)
+    st.success("RAG Pipeline initialized!")
+
+    # Build the LLM chain and accept a user query
+    chain = build_llm("llama3")
+    query = st.text_input(label="Say something: ", value="Is the vaccine effective?")
+
+    # Generate and display an answer grounded in the retrieved context
+    answer = generate_answer(query, retriever, chain)
+    st.write("Answer: ", answer)
+
+if __name__ == "__main__":
+    main()
