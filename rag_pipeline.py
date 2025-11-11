@@ -4,7 +4,7 @@ from document_loader import load_web_page
 from document_splitter import split_documents
 from embed_model import get_embeddings_model
 from vector_database import save_vectorstore, load_vectorstore, get_retriever
-from llm_model import build_llm, generate_answer
+from llm_model import olama_model
 
 def _init_page() -> None:
     """
@@ -49,12 +49,13 @@ def main() -> None:
     retriever = get_retriever(vectorstore, k=3)
     st.success("RAG Pipeline initialized!")
 
+    # Variant with Olama TODO: accept arguments in stream lit to swap models
     # Build the LLM chain and accept a user query
-    chain = build_llm("llama3")
+    llama3 = olama_model("llama3")
     query = st.text_input(label="Say something: ", value="Is the vaccine effective?")
 
     # Generate and display an answer grounded in the retrieved context
-    answer = generate_answer(query, retriever, chain)
+    answer = llama3.generate_answer(query, retriever)
     st.write("Answer: ", answer)
 
 if __name__ == "__main__":
