@@ -114,4 +114,29 @@ class olama_model(llm_model):
         answer = (self.chain.invoke({"query": query, "context": context})).content
         return answer
 
+class openai_rub_model(llm_model):
+    # TODO: Figure out token
+    # TODO: Figure out how to load model
+    # TODO: Figure out context for rub models --> the api does not allow adding context for rag :(
 
+    def __init__(self):
+        super().__init__()
+
+    def build_llm(self, model):
+
+        return 
+    
+    def generate_answer(self, query, retriever):
+        return 
+    
+
+
+class mistral_model(llm_model):
+    def __init__(self):
+        super().__init__()
+
+    def build_llm(self, model):
+        return super().build_llm(model)
+    
+    def generate_answer(self, query, retriever):
+        return super().generate_answer(query, retriever)
