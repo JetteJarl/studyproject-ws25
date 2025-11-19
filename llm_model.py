@@ -9,7 +9,20 @@ from langchain_core.prompts.chat import (
 
 from document_retriever import retrieve_docs
 
+from mistralai import Mistral
+
+
 import abc
+import os
+
+
+
+def retrieve_context(query, retriever):
+    # Retrieve top documents for the question
+    docs = retrieve_docs(retriever, query)
+    context = _format_context(docs)
+
+    return context
 
 
 def _format_context(docs: list[Document]) -> str:
@@ -61,7 +74,6 @@ class llm_model(abc.ABC):
 
 class olama_model(llm_model):
     def __init__(self, model: str):
-        super().__init__()
         self.chain = self.build_llm(model)
 
         # there are many more models provided by langchain
@@ -107,36 +119,56 @@ class olama_model(llm_model):
             Model answer as a string.
         """
         # Retrieve top documents for the question
-        docs = retrieve_docs(retriever, query)
-        context = _format_context(docs)
+        context = retrieve_context(query, retriever)
         print("Generating answer...")
         # The chain returns a message-like object with .content
         answer = (self.chain.invoke({"query": query, "context": context})).content
         return answer
-
-class openai_rub_model(llm_model):
-    # TODO: Figure out token
-    # TODO: Figure out how to load model
-    # TODO: Figure out context for rub models --> the api does not allow adding context for rag :(
-
-    def __init__(self):
-        super().__init__()
-
-    def build_llm(self, model):
-
-        return 
-    
-    def generate_answer(self, query, retriever):
-        return 
     
 
 
 class mistral_model(llm_model):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, model: str):
+        self.model = model
+        self.client = self.build_llm(self.model)
 
     def build_llm(self, model):
-        return super().build_llm(model)
-    
+        print("Loading model...")
+        api_key = os.environ["MISTRAL_API_KEY"]
+        client = Mistral(api_key=api_key)
+
+        return client
+
     def generate_answer(self, query, retriever):
-        return super().generate_answer(query, retriever)
+        print("Preparing input...")
+        # Retrieve top documents for the question
+        context = retrieve_context(query, retriever)
+    
+        prompt = f"""
+        Context information is below.
+        ---------------------
+        {context}
+        ---------------------
+        Given the context information and not prior knowledge, answer the query.
+        Query: {query}
+        Answer:
+        """
+
+        messages = [
+            {
+                "role":"system",
+                "content": "You are an expert, checking facts in statements made in public. If you are unsure do not make up information, instead say that you are missing information." 
+            },
+            {
+                "role": "user", 
+                "content": prompt
+            }
+        ]
+
+        print("Sending request...")
+        chat_response = self.client.chat.complete(
+            model= self.model,
+            messages = messages
+        )
+
+        return chat_response.choices[0].message.content
