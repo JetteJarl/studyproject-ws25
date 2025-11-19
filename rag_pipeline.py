@@ -4,7 +4,7 @@ from document_loader import load_web_page
 from document_splitter import split_documents
 from embed_model import get_embeddings_model
 from vector_database import save_vectorstore, load_vectorstore, get_retriever
-from llm_model import olama_model, mistral_model
+from llm_model import langchain_model, mistral_model
 
 def _init_page() -> None:
     """
@@ -58,11 +58,12 @@ def main() -> None:
     # answer = llama3.generate_answer(query, retriever)
     # st.write("Answer: ", answer)
 
-    mixtral = mistral_model('open-mixtral-8x7b')
-    query = st.text_input(label="Say something: ", value="Is the vaccine effective?")
+    # Use Mixtral (open-mixtral-8x7b)
+    mixtral = mistral_model('open-mixtral-8x7b')    # setup model
+    query = st.text_input(label="Say something: ", value="Is the vaccine effective?")   # access query
 
-    answer = mixtral.generate_answer(query, retriever)
-    st.write("Answer: ", answer)
+    answer = mixtral.generate_answer(query, retriever)  # generate answer
+    st.write("Answer: ", answer)    # print answer
 
 
 if __name__ == "__main__":

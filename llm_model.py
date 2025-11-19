@@ -18,7 +18,17 @@ import os
 
 
 def retrieve_context(query, retriever):
-    # Retrieve top documents for the question
+    """
+    Retrieve the context for a given query, based on the retriever
+
+    Args:
+        query: User input
+        retriever: Retriever object
+
+    Returns:
+        Formatted context matching the user's query
+    """
+
     docs = retrieve_docs(retriever, query)
     context = _format_context(docs)
 
@@ -72,8 +82,15 @@ class llm_model(abc.ABC):
 
 
 
-class olama_model(llm_model):
+class langchain_model(llm_model):
     def __init__(self, model: str):
+        """
+        Creates langchain model class and invokes build_llm.
+
+        Args:
+            model: mdoel identifier
+        """
+
         self.chain = self.build_llm(model)
 
         # there are many more models provided by langchain
@@ -82,14 +99,9 @@ class olama_model(llm_model):
 
     def build_llm(self, model: str) -> Runnable:
         """
-        Construct a simple LLM chain with a system and human prompt.
-
-        Args:
-            model: Name of the local Ollama model (e.g., 'llama3').
-
-        Returns:
-            A runnable chain compatible with .invoke({"query": ..., "context": ...}).
+        Returns chain used as model by langchain
         """
+
         print("Loading local model...")
         llm = ChatOllama(model=model)
         prompt = ChatPromptTemplate([
@@ -108,16 +120,9 @@ class olama_model(llm_model):
         retriever,
     ) -> str:
         """
-        Generate an answer grounded in the retrieved context.
-
-        Args:
-            query: The user query.
-            retriever: A retriever object.
-            chain: Runnable chain created by build_llm.
-
-        Returns:
-            Model answer as a string.
+        Generate an answer grounded in the retrieved context using the langchain model.
         """
+
         # Retrieve top documents for the question
         context = retrieve_context(query, retriever)
         print("Generating answer...")
@@ -129,18 +134,32 @@ class olama_model(llm_model):
 
 class mistral_model(llm_model):
     def __init__(self, model: str):
+        """
+        Creates langchain model class and invokes build_llm.
+
+        Args:
+            model: mdoel identifier
+        """
+
         self.model = model
         self.client = self.build_llm(self.model)
 
     def build_llm(self, model):
-        print("Loading model...")
+        """
+        Builds mistral model. Needs the API Key.
+        """
+
+        print("Setting up remote model access...")
         api_key = os.environ["MISTRAL_API_KEY"]
         client = Mistral(api_key=api_key)
 
         return client
 
     def generate_answer(self, query, retriever):
-        print("Preparing input...")
+        """
+        Generating answer using mistral model.
+        """
+        
         # Retrieve top documents for the question
         context = retrieve_context(query, retriever)
     
