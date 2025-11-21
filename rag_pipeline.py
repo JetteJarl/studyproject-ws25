@@ -1,4 +1,6 @@
 import streamlit as st
+from langchain_core.documents import Document
+from langchain_core.vectorstores import VectorStore
 
 from document_loader import load_web_page
 from document_splitter import split_documents
@@ -16,6 +18,31 @@ def _init_page() -> None:
         layout="wide",
     )
     st.title("Automated Counterstatement Generation against Misinformation via Generative AI")
+
+def run_rag(query: str, vectorstore: VectorStore) -> tuple[str, list[Document]]:
+    """
+    Run the RAG pipeline for a single query and return the model answer plus the
+    retrieved contexts in rank order.
+
+    Args:
+        query: The user claim/s to answer.
+        vectorstore: The vector store backing the retriever.
+
+    Returns:
+        A tuple (answer, contexts) where:
+          - answer is the generated answer as a string.
+          - contexts is a list of retrieved Document objects in ranking order.
+            For Ragas, convert these to a list of strings (e.g., [d.page_content for d in contexts]).
+    """
+    # Configure retriever (k controls number of top documents to fetch)
+    retriever = get_retriever(vectorstore, k=3)
+
+    # Build the LLM chain and accept a user query
+    chain = build_llm("llama3")
+
+    # Generate and display an answer grounded in the retrieved context
+    answer, docs = generate_answer(query, retriever, chain)
+    return answer, docs
 
 def main() -> None:
     """
@@ -45,16 +72,8 @@ def main() -> None:
         chunks = split_documents(docs, chunk_size=1000, chunk_overlap=200)
         vectorstore = save_vectorstore(chunks, embeddings_model, datastore_name)
 
-    # Configure retriever (k controls number of top documents to fetch)
-    retriever = get_retriever(vectorstore, k=3)
-    st.success("RAG Pipeline initialized!")
-
-    # Build the LLM chain and accept a user query
-    chain = build_llm("llama3")
     query = st.text_input(label="Say something: ", value="Is the vaccine effective?")
-
-    # Generate and display an answer grounded in the retrieved context
-    answer = generate_answer(query, retriever, chain)
+    answer, _ = run_rag(query, vectorstore)
     st.write("Answer: ", answer)
 
 if __name__ == "__main__":
