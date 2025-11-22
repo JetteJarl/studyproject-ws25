@@ -55,11 +55,11 @@ def run_rag(query: str) -> tuple[str, list[Document], Runnable]:
     retriever = get_retriever(vectorstore, k=3)
 
     # Build the LLM chain and accept a user query
-    chain = build_llm("llama3")
+    chain, llm = build_llm("llama3")
 
     # Generate and display an answer grounded in the retrieved context
     answer, docs = generate_answer(query, retriever, chain)
-    return answer, docs, chain
+    return answer, docs, llm
 
 def main() -> None:
     """

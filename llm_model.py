@@ -22,15 +22,21 @@ def _format_context(docs: list[Document]) -> str:
     context = "\n\n".join(d.page_content for d in docs)
     return context
 
-def build_llm(model: str) -> Runnable:
+def build_llm(model: str) -> tuple[Runnable, ChatOllama]:
     """
-    Construct a simple LLM chain with a system and human prompt.
+    Create the local Ollama-backed chat model and a simple prompt chain.
 
     Args:
-        model: Name of the local Ollama model (e.g., 'llama3').
+        model: Name of the local Ollama model to load (e.g., "llama3").
 
     Returns:
-        A runnable chain compatible with .invoke({"query": ..., "context": ...}).
+        A tuple (chain, llm) where:
+          - chain: a Runnable that accepts a dict {"query": str, "context": str}
+                   and can be invoked via .invoke({...}). It produces a message-like
+                   object with a .content string used as the model’s answer.
+          - llm: the underlying ChatOllama instance, which can be reused to plug
+                 into external evaluators (e.g., Ragas metric constructors) that
+                 require an LLM callable.
     """
     print("Loading local model...")
     llm = ChatOllama(model=model)
@@ -41,7 +47,7 @@ def build_llm(model: str) -> Runnable:
         HumanMessagePromptTemplate.from_template("Query: {query}\n\nContext:\n{context}"),
     ])
     chain = prompt | llm
-    return chain
+    return chain, llm
 
 def generate_answer(
     query: str,
