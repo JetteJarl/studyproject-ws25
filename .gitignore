@@ -228,3 +228,6 @@ doc.pdf
 
 # Chroma database
 /chroma_db/
+
+# Data
+/data/
