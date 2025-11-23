@@ -1,5 +1,7 @@
 import streamlit as st
 from langchain_core.documents import Document
+from langchain_core.runnables import Runnable
+from langchain_core.vectorstores import VectorStoreRetriever
 
 from document_loader import load_web_page
 from document_splitter import split_documents
@@ -18,13 +20,10 @@ def _init_page() -> None:
     )
     st.title("Automated Counterstatement Generation against Misinformation via Generative AI")
 
-def run_rag(query: str) -> tuple[str, list[Document], str, str]:
+def load_rag() -> tuple[VectorStoreRetriever, Runnable, str, str]:
     """
     Run the RAG pipeline for a single query and return the model answer plus the
     retrieved contexts in rank order.
-
-    Args:
-        query: The user claim/s to answer.
 
     Returns:
         A tuple (answer, contexts) where:
@@ -35,7 +34,7 @@ def run_rag(query: str) -> tuple[str, list[Document], str, str]:
           - embedder is the name of the loaded embedding model, e.g., "sentence-transformers/all-mpnet-base-v2".
     """
     # Input: URL to scrape/load and index into the vector store if not present
-    url = st.text_input(label="Enter a URL to load:", value="https://en.wikipedia.org/wiki/COVID-19")
+    url = "https://en.wikipedia.org/wiki/COVID-19"
 
     # Initialize the embedding model name used for both indexing and retrieval
     embeddings_model, embedder  = get_embeddings_model("sentence-transformers/all-mpnet-base-v2")
@@ -56,9 +55,7 @@ def run_rag(query: str) -> tuple[str, list[Document], str, str]:
     # Build the LLM chain and accept a user query
     chain, llm = build_llm("llama3")
 
-    # Generate and display an answer grounded in the retrieved context
-    answer, docs = generate_answer(query, retriever, chain)
-    return answer, docs, llm, embedder
+    return retriever, chain, llm, embedder
 
 def main() -> None:
     """
@@ -73,7 +70,10 @@ def main() -> None:
     _init_page()
 
     query = st.text_input(label="Say something: ", value="Is the vaccine effective?")
-    answer = run_rag(query)[0] # only return the generated answer
+    retriever, chain = load_rag()[:2] # only return retriever and chain here
+
+    # Generate and display an answer grounded in the retrieved context
+    answer, docs = generate_answer(query, retriever, chain)
     st.write("Answer: ", answer)
 
 if __name__ == "__main__":
