@@ -7,8 +7,8 @@
 from typing import List, Any
 
 import pandas as pd
-import requests
 from datasets import Dataset
+from langchain_ollama import OllamaLLM
 from ragas.embeddings import HuggingFaceEmbeddings
 from ragas import evaluate
 from ragas.llms.base import LangchainLLMWrapper
@@ -36,24 +36,14 @@ from rag_pipeline import load_rag
 
 class LocalOllamaRagasLLM(LangchainLLMWrapper):
     def __init__(self, model: str, base_url: str):
-        self.model = model
-        self.base_url = base_url.rstrip("/")
+        self.langchain_llm = OllamaLLM(model=model, base_url=base_url)
+        self.bypass_temperature = True
+        self.is_finished_parser = None
 
     async def _agenerate(self, prompt: str) -> str:
-        payload = {
-            "model": self.model,
-            "prompt": prompt,
-        }
-        response = requests.post(
-            f"{self.base_url}/api/generate",
-            json=payload,
-            timeout=60
-        )
-        data = response.json()
-        return data.get("response", "").strip()
+        return await self.langchain_llm.apredict(prompt)
 
     def set_run_config(self, config):
-        """Ragas calls this, so we accept it even if unused."""
         self.run_config = config
 
 def build_ground_truth_text(evidences: List[List[Any]]) -> str:
