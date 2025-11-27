@@ -9,9 +9,10 @@ from typing import List, Any
 import pandas as pd
 from datasets import Dataset
 from langchain_ollama import OllamaLLM
-from ragas.embeddings import HuggingFaceEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
 from ragas import evaluate
 from ragas.llms.base import LangchainLLMWrapper
+from ragas.embeddings.base import BaseRagasEmbeddings
 # Note: not all metrics mentioned above are available in ragas. Especially these subjective metrics like e.g. bias
 # retrieval metrics
 from ragas.metrics import (
@@ -23,11 +24,11 @@ from ragas.metrics import (
 # generation metrics
 from ragas.metrics import (
     Faithfulness,
-    # ResponseGroundedness,
-    # AnswerAccuracy,
+    ResponseGroundedness,
+    AnswerAccuracy,
     FactualCorrectness,
     AnswerRelevancy,
-    # ContextRelevance,
+    ContextRelevance,
     SemanticSimilarity
 )
 
@@ -45,6 +46,35 @@ class LocalOllamaRagasLLM(LangchainLLMWrapper):
 
     def set_run_config(self, config):
         self.run_config = config
+
+class RagasHuggingFaceWrapper(BaseRagasEmbeddings):
+    """
+    Adapter for ragas 0.3.9 embedding interface.
+    Satisfies ALL required methods:
+        - embed_query         (sync)
+        - embed_documents     (sync)
+        - aembed_query        (async)
+        - aembed_documents    (async)
+        - embed_text          (async)
+    """
+
+    def __init__(self, model_name: str):
+        self.lc_embedder = HuggingFaceEmbeddings(model_name=model_name)
+
+    def embed_query(self, query: str):
+        return self.lc_embedder.embed_query(query)
+
+    def embed_documents(self, docs: list[str]):
+        return self.lc_embedder.embed_documents(docs)
+
+    async def aembed_query(self, query: str):
+        return self.lc_embedder.embed_query(query)
+
+    async def aembed_documents(self, docs: list[str]):
+        return self.lc_embedder.embed_documents(docs)
+
+    async def embed_text(self, text: str):
+        return self.lc_embedder.embed_query(text)
 
 def build_ground_truth_text(evidences: List[List[Any]]) -> str:
     """
@@ -164,7 +194,7 @@ def evaluate_with_ragas(df: pd.DataFrame, llm: str, embedder: str) -> tuple[Any,
     print("type of llm: ", type(llm))
 
     print("type of embedder: ", type(embedder))
-    embedder = HuggingFaceEmbeddings(model=embedder)
+    embedder = RagasHuggingFaceWrapper(model_name=embedder)
     print("type of embedder: ", type(embedder))
 
     # Naming of parameters is here actually necessary
@@ -176,11 +206,11 @@ def evaluate_with_ragas(df: pd.DataFrame, llm: str, embedder: str) -> tuple[Any,
         ContextEntityRecall(llm=llm),
         # Generation metrics
         Faithfulness(llm=llm),
-        # ResponseGroundedness(llm=llm),
-        # AnswerAccuracy(llm=llm),
+        ResponseGroundedness(llm=llm),
+        AnswerAccuracy(llm=llm),
         FactualCorrectness(llm=llm),
         AnswerRelevancy(llm=llm, embeddings=embedder),
-        # ContextRelevance(llm=llm),
+        ContextRelevance(llm=llm),
         SemanticSimilarity(embeddings=embedder)
     ]
 
@@ -193,7 +223,7 @@ def evaluate_with_ragas(df: pd.DataFrame, llm: str, embedder: str) -> tuple[Any,
 
 
 def main():
-    df = load_fever_split(sample_size=200)
+    df = load_fever_split(sample_size=10)
     df, llm, embedder = run_pipeline_on_querys(df)
     per_row, aggregates = evaluate_with_ragas(df, llm, embedder)
 
