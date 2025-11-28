@@ -23,9 +23,6 @@ def load_fever_split(sample_size: int = 200, seed: int = 7) -> pd.DataFrame:
     # https://github.com/huggingface/datasets/issues/7693
     # Downloaded the data manually from https://fever.ai/dataset/fever.html and save it locally
     df = pd.read_json("data/shared_task_dev.jsonl", lines=True)
-    print(df.head)
-    print(df.columns)
-    print(df.shape)
     # Keep only entries with label != NEI
     df = df[df["label"].isin(["SUPPORTS", "REFUTES"])].copy()
 

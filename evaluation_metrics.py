@@ -39,31 +39,18 @@ def evaluate_with_ragas(df: pd.DataFrame, llm: str, embedder: str) -> tuple[Any,
     # Ragas accepts a pandas DataFrame with columns:
     # query (str), answer (str), contexts (List[str]), ground_truth (str)
     eval_df = df[["query", "answer", "contexts", "ground_truth"]]
-    print(f"Data type of the first value in 'query': {type(eval_df['query'].iloc[0])}")
-    print(f"Data type of the first value in 'answer': {type(eval_df['answer'].iloc[0])}")
-    print(f"Data type of the first value in 'contexts': {type(eval_df['contexts'].iloc[0]), type(eval_df['contexts'].iloc[0][0])}")
-    print(f"Data type of the first value in 'ground_truth': {type(eval_df['ground_truth'].iloc[0])}")
-
-    print(eval_df["query"])
-    print(eval_df["answer"])
-    print(eval_df["contexts"])
-    print(eval_df["ground_truth"])
 
     # Required by retrieval metrics (ContextPrecision, ContextRecall, etc.)
     eval_df["user_input"] = eval_df["query"]
 
     ragas_dataset = Dataset.from_pandas(eval_df)
 
-    print("type of llm: ", type(llm))
     llm = LocalOllamaRagasLLM(
         model=llm,
         base_url="http://localhost:11434"
     )
-    print("type of llm: ", type(llm))
 
-    print("type of embedder: ", type(embedder))
     embedder = RagasHuggingFaceWrapper(model_name=embedder)
-    print("type of embedder: ", type(embedder))
 
     # Naming of parameters is here actually necessary
     selected_metrics = [
@@ -95,15 +82,9 @@ def main():
     df, llm, embedder = run_pipeline_on_querys(df)
     per_row, aggregates = evaluate_with_ragas(df, llm, embedder)
 
-    print("Aggregate metrics:")
-    for a in aggregates:
-        for k, v in a.items():
-            print(f"- {k}: {v:.4f}")
-
     # Save detailed results
     per_row.to_csv("ragas_fever_per_row.csv", index=False)
-    pd.DataFrame([aggregates]).to_csv("ragas_fever_aggregates.csv", index=False)
-    print("Saved ragas_fever_per_row.csv and ragas_fever_aggregates.csv")
+    print("Saved metrics results")
 
 
 if __name__ == "__main__":
