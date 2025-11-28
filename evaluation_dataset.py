@@ -29,14 +29,13 @@ def load_fever_split(sample_size: int = 200, seed: int = 7) -> pd.DataFrame:
     df["user_input"] = df["claim"].astype(str)
     df["ground_truth"] = df.apply(_ref_text, axis=1)
 
-    # Evaluate on a very small subset for speed (e.g., 10 rows)
-    df = df.head(10).reset_index(drop=True)
     # Sample for a quick evaluation run
     if sample_size and len(df) > sample_size:
         df = df.sample(n=sample_size, random_state=seed)
 
     # Keep only necessary columns
-    return df[["user_input", "ground_truth", "label"]].reset_index(drop=True)
+    df = df[["user_input", "ground_truth", "label"]].reset_index(drop=True)
+    return df
 
 def run_pipeline_on_querys(df: pd.DataFrame) -> tuple[pd.DataFrame, str, str]:
     """
