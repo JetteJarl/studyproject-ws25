@@ -14,19 +14,19 @@ def _ref_text(row) -> str:
 def load_fever_split(sample_size: int = 200, seed: int = 7) -> pd.DataFrame:
     """
     Load a FEVER split and prepare a DataFrame with columns:
-    - query: the claim
+    - user_input: the claim
     - ground_truth: evidence text or label-based reference
     - label: SUPPORTS/REFUTES/NOT ENOUGH INFO
     We filter out NOT ENOUGH INFO for clean supervision.
     """
-    # Newer versions of dataset 3.6.0 contain a bug that prevents loading datasets remotely:
+    # Newer versions of dataset contain a bug that prevents loading datasets remotely:
     # https://github.com/huggingface/datasets/issues/7693
-    # Downloaded the data manually from https://fever.ai/dataset/fever.html and save it locally
+    # Downloaded the data manually from https://fever.ai/dataset/fever.html and saved it locally
     df = pd.read_json("data/shared_task_dev.jsonl", lines=True)
     # Keep only entries with label != NEI
     df = df[df["label"].isin(["SUPPORTS", "REFUTES"])].copy()
 
-    df["query"] = df["claim"].astype(str)
+    df["user_input"] = df["claim"].astype(str)
     df["ground_truth"] = df.apply(_ref_text, axis=1)
 
     # Evaluate on a very small subset for speed (e.g., 10 rows)
@@ -36,7 +36,7 @@ def load_fever_split(sample_size: int = 200, seed: int = 7) -> pd.DataFrame:
         df = df.sample(n=sample_size, random_state=seed)
 
     # Keep only necessary columns
-    return df[["query", "ground_truth", "label"]].reset_index(drop=True)
+    return df[["user_input", "ground_truth", "label"]].reset_index(drop=True)
 
 def run_pipeline_on_querys(df: pd.DataFrame) -> tuple[pd.DataFrame, str, str]:
     """
@@ -48,7 +48,7 @@ def run_pipeline_on_querys(df: pd.DataFrame) -> tuple[pd.DataFrame, str, str]:
 
     retriever, chain, llm, embedder = load_rag()
 
-    for query in df["query"].tolist():
+    for query in df["user_input"].tolist():
         answer, contexts = generate_answer(query, retriever, chain)
         answers.append(answer)
         # Ensure contexts is a list of strings
