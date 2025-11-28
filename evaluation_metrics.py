@@ -31,8 +31,15 @@ from evaluation_dataset import load_fever_split, run_pipeline_on_querys
 
 def evaluate_with_ragas(df: pd.DataFrame, llm: str, embedder: str) -> pd.DataFrame:
     """
-    Runs a selection of Ragas metrics aligned to your evaluation plan.
-    Returns (per-row scores DataFrame, aggregate scores dict).
+    Run Ragas metrics on the model outputs using the specified LLM and embedder backends.
+
+    Parameters:
+        df: DataFrame with columns {"user_input", "answer", "contexts", "ground_truth"}.
+        llm: Model identifier/name for the judge LLM backend.
+        embedder: Embedding model identifier/name.
+
+    Returns:
+        pandas DataFrame of per-sample metric scores.
     """
     # Ragas accepts a pandas DataFrame with columns:
     # user_input (str), answer (str), contexts (List[str]), ground_truth (str)
@@ -65,6 +72,12 @@ def evaluate_with_ragas(df: pd.DataFrame, llm: str, embedder: str) -> pd.DataFra
 
 
 def main():
+    """
+    Orchestrate a full evaluation run:
+      1) Load and prepare the FEVER subset.
+      2) Run the RAG pipeline to produce answers and contexts.
+      3) Evaluate outputs with Ragas and save results.
+    """
     df = load_fever_split(sample_size=10)
     df, llm, embedder = run_pipeline_on_querys(df)
     per_row = evaluate_with_ragas(df, llm, embedder)
