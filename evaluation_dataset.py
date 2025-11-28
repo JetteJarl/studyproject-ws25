@@ -41,7 +41,7 @@ def load_fever_split(sample_size: int = 200, seed: int = 7) -> pd.DataFrame:
     df = pd.read_json("data/shared_task_dev.jsonl", lines=True)
     # Keep only entries with label != NEI
     df = df[df["label"].isin(["SUPPORTS", "REFUTES"])].copy()
-
+    # Rename column because Ragas expects "user_input"
     df["user_input"] = df["claim"].astype(str)
     df["ground_truth"] = df.apply(_ref_text, axis=1)
 

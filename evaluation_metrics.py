@@ -43,27 +43,29 @@ def evaluate_with_ragas(df: pd.DataFrame, llm: str, embedder: str) -> pd.DataFra
     """
     # Ragas accepts a pandas DataFrame with columns:
     # user_input (str), answer (str), contexts (List[str]), ground_truth (str)
+    # Ragas exactly expects these column names and nothing else!
     eval_df = df[["user_input", "answer", "contexts", "ground_truth"]]
     ragas_dataset = Dataset.from_pandas(eval_df)
 
+    # Wrap the LLM and embedder backends with Ragas-specific wrappers
     llm = LocalOllamaRagasLLM(llm, base_url="http://localhost:11434")
     embedder = RagasHuggingFaceWrapper(embedder)
 
     # Naming of parameters is here actually necessary
     selected_metrics = [
         # Retrieval metrics
-        ContextPrecision(llm=llm),
-        ContextRecall(llm=llm),
-        NoiseSensitivity(llm=llm),
-        ContextEntityRecall(llm=llm),
+        ContextPrecision(llm=llm), # Measures how many of the retrieved context passages were actually relevant to the answer.
+        ContextRecall(llm=llm), # Measures how many relevant context passages the retriever successfully found out of all possible relevant ones.
+        NoiseSensitivity(llm=llm), # Measures how much irrelevant or noisy context negatively affects the model’s answer.
+        ContextEntityRecall(llm=llm), # Checks whether the retrieved context contains all important entities needed to answer the query correctly.
         # Generation metrics
-        Faithfulness(llm=llm),
-        ResponseGroundedness(llm=llm),
-        AnswerAccuracy(llm=llm),
-        FactualCorrectness(llm=llm),
-        AnswerRelevancy(llm=llm, embeddings=embedder),
-        ContextRelevance(llm=llm),
-        SemanticSimilarity(embeddings=embedder)
+        Faithfulness(llm=llm), # Evaluates whether the answer is grounded in the retrieved context without hallucinating new facts.
+        ResponseGroundedness(llm=llm), # Measures how well each part of the answer can be directly supported by the provided context passages.
+        AnswerAccuracy(llm=llm), # Compares the answer directly to the ground-truth answer to measure factual correctness.
+        FactualCorrectness(llm=llm), # Checks whether the answer's factual claims are correct relative to the ground truth (precision/recall/f1).
+        AnswerRelevancy(llm=llm, embeddings=embedder), # Measures how relevant the generated answer is to the user’s original question.
+        ContextRelevance(llm=llm), # Checks whether the retrieved context is actually helpful for answering the question.
+        SemanticSimilarity(embeddings=embedder) # Measures how semantically similar the generated answer is to the ground-truth answer.
     ]
 
     result = evaluate(ragas_dataset, selected_metrics)
