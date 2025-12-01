@@ -17,7 +17,7 @@ Ubuntu example:
 
 ```bash
 export MISTRAL_API_KEY="your_api_key_here"
-
+```
 
 ### Local Model
 **For now, we use for our RAG pipeline prototype a local Ollama LLM (here: *Llama3*). This might change during the project.**
