@@ -17,10 +17,8 @@ def main() -> None:
     - Build retriever and LLM chain.
     - Accept a user query and generate an answer using retrieved context.
     """
+    # Initialize the Streamlit UI
     init_page()
-
-    # Input: URL to scrape/load and index into the vector store if not present
-    url = st.text_input(label="Enter a URL to load:", value="https://en.wikipedia.org/wiki/COVID-19")
 
     # Initialize the embedding model name used for both indexing and retrieval
     embeddings_model = get_embeddings_model("sentence-transformers/all-mpnet-base-v2")
@@ -30,7 +28,7 @@ def main() -> None:
     vectorstore = load_vectorstore(embeddings_model, datastore_name)
     if vectorstore is None:
         # Load and split documents before storing
-        docs = load_web_page(url)
+        docs = load_web_page("https://en.wikipedia.org/wiki/COVID-19")
         # Chunking helps the retrieval quality and token efficiency
         chunks = split_documents(docs, chunk_size=1000, chunk_overlap=200)
         vectorstore = save_vectorstore(chunks, embeddings_model, datastore_name)
