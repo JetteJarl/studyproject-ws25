@@ -5,17 +5,7 @@ from document_splitter import split_documents
 from embed_model import get_embeddings_model
 from vector_database import save_vectorstore, load_vectorstore, get_retriever
 from llm_model import build_llm, generate_answer
-
-def _init_page() -> None:
-    """
-    Configure and render the Streamlit page header.
-    """
-    st.set_page_config(
-        page_title="RAG Pipeline Prototype",
-        page_icon="🤖",
-        layout="wide",
-    )
-    st.title("Automated Counterstatement Generation against Misinformation via Generative AI")
+from user_interface import init_page
 
 def main() -> None:
     """
@@ -27,7 +17,7 @@ def main() -> None:
     - Build retriever and LLM chain.
     - Accept a user query and generate an answer using retrieved context.
     """
-    _init_page()
+    init_page()
 
     # Input: URL to scrape/load and index into the vector store if not present
     url = st.text_input(label="Enter a URL to load:", value="https://en.wikipedia.org/wiki/COVID-19")
