@@ -13,37 +13,49 @@ def main() -> None:
 
     Steps:
     - Read URL input.
-    - Initialize embeddings and vectorstore (load existing or build from URL).
+    - Initialize embeddings and vectorstore.
     - Build retriever and LLM chain.
     - Accept a user query and generate an answer using retrieved context.
     """
     # Initialize the Streamlit UI
     init_page()
 
-    # Initialize the embedding model name used for both indexing and retrieval
-    embeddings_model = get_embeddings_model("sentence-transformers/all-mpnet-base-v2")
-    datastore_name = "chroma_db"
+    # Initialize session state variable to track if RAG is ready
+    if "rag_initialized" not in st.session_state:
+        st.session_state.rag_initialized = False
 
-    # Attempt to load an existing vectorstore; if not found, ingest from the URL
-    vectorstore = load_vectorstore(embeddings_model, datastore_name)
-    if vectorstore is None:
-        # Load and split documents before storing
-        docs = load_web_page("https://en.wikipedia.org/wiki/COVID-19")
-        # Chunking helps the retrieval quality and token efficiency
-        chunks = split_documents(docs, chunk_size=1000, chunk_overlap=200)
-        vectorstore = save_vectorstore(chunks, embeddings_model, datastore_name)
+    # Show the button only if not yet initialized
+    if not st.session_state.rag_initialized:
+        if st.button("Start RAG System"):
+            st.session_state.rag_initialized = True
+            st.rerun()
 
-    # Configure retriever (k controls number of top documents to fetch)
-    retriever = get_retriever(vectorstore, k=3)
-    st.success("RAG Pipeline initialized!")
+    # Only run the RAG pipeline if initialized
+    if st.session_state.rag_initialized:
+        # Initialize the embedding model name used for both indexing and retrieval
+        embeddings_model = get_embeddings_model("sentence-transformers/all-mpnet-base-v2")
+        datastore_name = "chroma_db"
 
-    # Build the LLM chain and accept a user query
-    chain = build_llm("llama3")
-    query = st.text_input(label="Say something: ", value="Is the vaccine effective?")
+        # Attempt to load an existing vectorstore; if not found, ingest from the URL
+        vectorstore = load_vectorstore(embeddings_model, datastore_name)
+        if vectorstore is None:
+            # Load and split documents before storing
+            docs = load_web_page("https://en.wikipedia.org/wiki/COVID-19")
+            # Chunking helps the retrieval quality and token efficiency
+            chunks = split_documents(docs, chunk_size=1000, chunk_overlap=200)
+            vectorstore = save_vectorstore(chunks, embeddings_model, datastore_name)
 
-    # Generate and display an answer grounded in the retrieved context
-    answer = generate_answer(query, retriever, chain)
-    st.write("Answer: ", answer)
+        # Configure retriever (k controls number of top documents to fetch)
+        retriever = get_retriever(vectorstore, k=3)
+        st.success("RAG Pipeline initialized!")
+
+        # Build the LLM chain and accept a user query
+        chain = build_llm("tinyllama")
+        query = st.text_input(label="Say something: ", value="Is the vaccine effective?")
+
+        # Generate and display an answer grounded in the retrieved context
+        answer = generate_answer(query, retriever, chain)
+        st.write("Answer: ", answer)
 
 if __name__ == "__main__":
     main()
