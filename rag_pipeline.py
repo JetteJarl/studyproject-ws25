@@ -61,8 +61,9 @@ def main() -> None:
         query = st.text_area(label="Say something: ", value="Is the vaccine effective?")
 
         # Generate and display an answer grounded in the retrieved context
-        answer = generate_answer(query, retriever, chain)
-        st.write("Answer: ", answer)
+        if st.button("Get Answer"):
+            answer = generate_answer(query, retriever, chain)
+            st.write("Answer: ", answer)
 
 if __name__ == "__main__":
     main()
