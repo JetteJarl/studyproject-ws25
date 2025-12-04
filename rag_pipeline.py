@@ -62,8 +62,13 @@ def main() -> None:
 
         # Generate and display an answer grounded in the retrieved context
         if st.button("Get Answer"):
-            answer = generate_answer(query, retriever, chain)
-            st.write("Answer: ", answer)
+            if query:
+                with st.spinner("Generating answer..."):
+                    answer = generate_answer(query, retriever, chain)
+                    st.write("Answer:")
+                    st.write(answer)
+            else:
+                st.warning("Please enter a some text.")
 
 if __name__ == "__main__":
     main()
