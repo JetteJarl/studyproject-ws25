@@ -51,7 +51,7 @@ def main() -> None:
 
         # Build the LLM chain and accept a user query
         chain = build_llm("tinyllama")
-        query = st.text_input(label="Say something: ", value="Is the vaccine effective?")
+        query = st.text_area(label="Say something: ", value="Is the vaccine effective?")
 
         # Generate and display an answer grounded in the retrieved context
         answer = generate_answer(query, retriever, chain)
