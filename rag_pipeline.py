@@ -20,26 +20,8 @@ def main() -> None:
     # Initialize the Streamlit UI
     init_page()
 
-    # Track initialization and one-time success banner
-    if "rag_initialized" not in st.session_state:
-        st.session_state.rag_initialized = False
-    if "show_success_once" not in st.session_state:
-        st.session_state.show_success_once = False
-
-    # Show the button only if not yet initialized
-    if not st.session_state.rag_initialized:
-        if st.button("Start RAG System"):
-            st.session_state.rag_initialized = True
-            st.session_state.show_success_once = True
-            st.rerun()
-
-    # Only run the RAG pipeline if initialized
-    if st.session_state.rag_initialized:
-        # Show success message only once
-        if st.session_state.show_success_once:
-            st.success("RAG Pipeline initialized!")
-            st.session_state.show_success_once = False
-
+    # Only run the RAG pipeline and show query UI if initialized
+    if st.session_state.get("rag_initialized", False):
         # Initialize the embedding model name used for both indexing and retrieval
         embeddings_model = get_embeddings_model("sentence-transformers/all-mpnet-base-v2")
         datastore_name = "chroma_db"
