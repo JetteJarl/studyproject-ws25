@@ -35,8 +35,8 @@ def main() -> None:
             chunks = split_documents(docs, chunk_size=1000, chunk_overlap=200)
             vectorstore = save_vectorstore(chunks, embeddings_model, datastore_name)
 
-        # Configure retriever (k controls number of top documents to fetch)
-        retriever = get_retriever(vectorstore, k=3)
+        # Configure retriever (relevant_chunks controls the number of top documents to fetch)
+        retriever = get_retriever(vectorstore, relevant_chunks=3)
 
         # Build the LLM chain and accept a user query
         chain = build_llm("tinyllama")
