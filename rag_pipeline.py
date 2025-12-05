@@ -20,7 +20,7 @@ def main() -> None:
     # Initialize the Streamlit UI
     init_page()
 
-    # Only run the RAG pipeline and show query UI if initialized
+    # Only run the RAG pipeline and show the query UI if initialized
     if st.session_state.get("rag_initialized", False):
         # Initialize the embedding model name used for both indexing and retrieval
         embeddings_model = get_embeddings_model("sentence-transformers/all-mpnet-base-v2")
@@ -35,15 +35,18 @@ def main() -> None:
             chunks = split_documents(docs, chunk_size=1000, chunk_overlap=200)
             vectorstore = save_vectorstore(chunks, embeddings_model, datastore_name)
 
-        # UI control to choose number of relevant chunks (top-k)
-        relevant_chunks = st.number_input(
-            "Number of relevant chunks",
-            min_value=1,
-            max_value=20,
-            value=3,
-            step=1,
-            help="How many context chunks the retriever should return for generating an answer."
-        )
+        # Reduce the width of the number input field to make it more compact
+        col_small, col_spacer = st.columns([1, 9]) # 10% of container width
+        with col_small:
+            # UI control to choose the number of relevant chunks (top-k)
+            relevant_chunks = st.number_input(
+                label="Number of relevant chunks",
+                min_value=1,
+                max_value=20,
+                value=3,
+                step=1,
+                help="How many context chunks the retriever should return for generating an answer. (Default: 3)"
+            )
 
         # Configure retriever (relevant_chunks controls the number of top documents to fetch)
         retriever = get_retriever(vectorstore, relevant_chunks)
