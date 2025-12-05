@@ -56,14 +56,14 @@ def main() -> None:
         query = st.text_area(label="Say something: ", value="Is the vaccine effective?")
 
         # Generate and display an answer and the retrieved context
-        if st.button("Get Answer"):
+        if st.button("Generate Answer"):
             if query:
                 # Show loading circle
                 with st.spinner("Generating answer..."):
                     answer, context = generate_answer(query, retriever, chain)
                     st.write("Answer:")
                     st.write(answer)
-                    with st.expander("Show Retrieved Context"):
+                    with st.expander("Show Retrieved Context from Local Vector Database"):
                         for i, doc in enumerate(context, 1):
                             st.markdown(f"**Relevant Chunk {i}:**")
                             st.markdown(doc.page_content)

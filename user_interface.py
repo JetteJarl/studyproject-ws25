@@ -26,5 +26,5 @@ def init_page() -> None:
 
     # Only run the RAG pipeline if initialized
     if st.session_state.rag_initialized and st.session_state.show_success_once:
-            st.success("RAG Pipeline initialized!")
+            st.success("RAG System initialized!")
             st.session_state.show_success_once = False
