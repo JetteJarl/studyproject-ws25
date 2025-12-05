@@ -47,7 +47,7 @@ def generate_answer(
     query: str,
     retriever,
     chain,
-) -> str:
+) -> tuple[str, list[Document]]:
     """
     Generate an answer grounded in the retrieved context.
 
@@ -57,7 +57,7 @@ def generate_answer(
         chain: Runnable chain created by build_llm.
 
     Returns:
-        Model answer as a string.
+        Model answer as a string and the retrieved documents.
     """
     # Retrieve top documents for the question
     docs = retrieve_docs(retriever, query)
@@ -65,7 +65,7 @@ def generate_answer(
     print("Generating answer...")
     # The chain returns a message-like object with .content
     answer = (chain.invoke({"query": query, "context": context})).content
-    return answer
+    return answer, docs
 
 # there are many more models provided by langchain
 # like e.g. llama2, llama3, gpt-4, etc.

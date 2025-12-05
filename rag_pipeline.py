@@ -42,14 +42,20 @@ def main() -> None:
         chain = build_llm("tinyllama")
         query = st.text_area(label="Say something: ", value="Is the vaccine effective?")
 
-        # Generate and display an answer grounded in the retrieved context
+        # Generate and display an answer and the retrieved context
         if st.button("Get Answer"):
             if query:
                 # Show loading circle
                 with st.spinner("Generating answer..."):
-                    answer = generate_answer(query, retriever, chain)
+                    answer, context = generate_answer(query, retriever, chain)
                     st.write("Answer:")
                     st.write(answer)
+                    with st.expander("Show Retrieved Context"):
+                        for i, doc in enumerate(context, 1):
+                            st.markdown(f"**Relevant Chunk {i}:**")
+                            st.markdown(doc.page_content)
+                            st.markdown("---")
+
             else:
                 st.warning("Please enter some text.")
 
