@@ -49,7 +49,7 @@ def load_vectorstore(
         return database
     return None
 
-def get_retriever(vectorstore: VectorStore, relevant_chunks: int = 3) -> VectorStoreRetriever:
+def get_retriever(vectorstore: VectorStore, relevant_chunks: int) -> VectorStoreRetriever:
     """
     Create a retriever from the vector store.
 
