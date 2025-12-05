@@ -54,8 +54,8 @@ def main() -> None:
                         for i, doc in enumerate(context, 1):
                             st.markdown(f"**Relevant Chunk {i}:**")
                             st.markdown(doc.page_content)
+                            st.markdown(f"*Source:* {doc.metadata['source']}")
                             st.markdown("---")
-
             else:
                 st.warning("Please enter some text.")
 
