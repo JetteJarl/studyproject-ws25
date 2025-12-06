@@ -39,7 +39,7 @@ def main() -> None:
         col_small, col_spacer = st.columns([1, 9]) # 10% of container width
         with col_small:
             # UI control to choose the number of relevant chunks (top-k)
-            relevant_chunks = st.number_input(
+            number_relevant_chunks = st.number_input(
                 label="Number of relevant chunks",
                 min_value=1,
                 max_value=20,
@@ -48,12 +48,16 @@ def main() -> None:
                 help="How many context chunks the retriever should return for generating an answer. (Default: 3)"
             )
 
-        # Configure retriever (relevant_chunks controls the number of top documents to fetch)
-        retriever = get_retriever(vectorstore, relevant_chunks)
+        # Configure retriever (number_relevant_chunks controls the number of top documents to fetch)
+        retriever = get_retriever(vectorstore, number_relevant_chunks)
 
         # Build the LLM chain and accept a user query
         chain = build_llm("tinyllama")
-        query = st.text_area(label="Say something: ", value="Is the vaccine effective?")
+        query = st.text_area(
+            label="Say something:",
+            value="Is the vaccine effective?",
+            help="Either copy&paste a comment or post from social media. Or enter a URL to a (fake) news article."
+        )
 
         # Generate and display an answer and the retrieved context
         if st.button("Generate Answer"):
