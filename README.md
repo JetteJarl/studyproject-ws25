@@ -28,7 +28,18 @@ export MISTRAL_API_KEY="your_api_key_here"
 5) If you want to use the model in the terminal, run the following command to call the **Llama 3** model: ``ollama run llama3``.
 Otherwise, just run the RAG pipeline. Ollama must run for model inference. Else you will get an error.
 
-**Attention**
+
+## Adding Data
+To add data to the data base you can use the script *adding_data.py* using the command
+``python3 adding_data.py data.csv --persist-dir chroma_db``
+where ``data.csv`` contains the data that you want to add and chroma_db is the existing database.
+
+If no vector database exists the script creates a new one. 
+
+In the current database we used a chunk size of 1000 and overlap of 200. The encoder model we used is sentence-transformers/all-mpnet-base-v2 from Huggingface.
+
+
+## Attention
 If the VRAM of your GPU is not sufficient (e.g. 2 GB), Llama 3 will not work because it is 4.7 GB big.<br>
 Instead, you could try a smaller model, e.g. **TinyLlama**.<br>
 Run this ``ollama pull tinyllama`` and you should be good to go!
