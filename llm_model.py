@@ -15,6 +15,8 @@ from mistralai import Mistral
 import abc
 import os
 
+from dotenv import load_dotenv
+
 
 
 def retrieve_context(query, retriever):
@@ -150,6 +152,7 @@ class mistral_model(llm_model):
         """
 
         print("Setting up remote model access...")
+        load_dotenv()
         api_key = os.environ["MISTRAL_API_KEY"]
         client = Mistral(api_key=api_key)
 
