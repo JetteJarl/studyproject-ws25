@@ -56,7 +56,7 @@ def main() -> None:
         query = st.text_area(
             label="Say something:",
             value="Is the vaccine effective?",
-            help="Either copy&paste a comment or post from social media. Or enter a URL to a (fake) news article."
+            help="Copy&paste a comment, a post, an entire (fake) news article etc. from social media or somewhere else."
         )
 
         # Generate and display an answer and the retrieved context
