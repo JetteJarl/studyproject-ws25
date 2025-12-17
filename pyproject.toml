@@ -14,6 +14,7 @@ dependencies = [
     "langchain-huggingface>=1.0.0",
     "langchain-ollama>=1.0.0",
     "langchain-openai>=1.0.1",
+    "mistralai>=1.9.11",
     "ollama>=0.6.0",
     "pandas>=2.3.3",
     "pypdf>=6.1.3",

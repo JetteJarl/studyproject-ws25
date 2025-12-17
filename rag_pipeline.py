@@ -4,7 +4,7 @@ from document_loader import load_web_page
 from document_splitter import split_documents
 from embed_model import get_embeddings_model
 from vector_database import save_vectorstore, load_vectorstore, get_retriever
-from llm_model import build_llm, generate_answer
+from llm_model import langchain_model, mistral_model
 
 def _init_page() -> None:
     """
@@ -49,13 +49,22 @@ def main() -> None:
     retriever = get_retriever(vectorstore, k=3)
     st.success("RAG Pipeline initialized!")
 
-    # Build the LLM chain and accept a user query
-    chain = build_llm("llama3")
-    query = st.text_input(label="Say something: ", value="Is the vaccine effective?")
+    # # Variant with Olama 
+    # # Build the LLM chain and accept a user query
+    # llama3 = olama_model("llama3")
+    # query = st.text_input(label="Say something: ", value="Is the vaccine effective?")
 
-    # Generate and display an answer grounded in the retrieved context
-    answer = generate_answer(query, retriever, chain)
-    st.write("Answer: ", answer)
+    # # Generate and display an answer grounded in the retrieved context
+    # answer = llama3.generate_answer(query, retriever)
+    # st.write("Answer: ", answer)
+
+    # Use Mixtral (open-mixtral-8x7b)
+    mixtral = mistral_model('open-mixtral-8x7b')    # setup model
+    query = st.text_input(label="Say something: ", value="Is the vaccine effective?")   # access query
+
+    answer = mixtral.generate_answer(query, retriever)  # generate answer
+    st.write("Answer: ", answer)    # print answer
+
 
 if __name__ == "__main__":
     main()
