@@ -50,7 +50,7 @@ def main() -> None:
     st.success("RAG Pipeline initialized!")
 
     # Build the LLM chain and accept a user query
-    chain = build_llm("tinyllama")
+    chain = build_llm("llama3")
     query = st.text_input(label="Say something: ", value="Is the vaccine effective?")
 
     # Generate and display an answer grounded in the retrieved context
