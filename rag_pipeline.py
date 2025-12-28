@@ -65,10 +65,10 @@ def main() -> None:
 
     # Use Mixtral (open-mixtral-8x7b)
     llm = "open-mixtral-8x7b"
-    mixtral = MistralModel(llm)
-    retriever = load_rag(chain=mixtral, llm=llm)[0] # setup model
+    mixtral = MistralModel(llm) # setup model
+    retriever = load_rag(chain=mixtral, llm=llm)[0] # access retriever
 
-    # load_rag(llm_model=MistralModel, llm="open-mixtral-8x7b")
+    # User input (enter false comment, fake news article etc...)
     query = st.text_input(label="Say something: ", value="Is the vaccine effective?")  # access query
 
     # Generate and display an answer grounded in the retrieved context
