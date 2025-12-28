@@ -1,3 +1,6 @@
+import abc
+import os
+
 from langchain_core.documents import Document
 from langchain_core.runnables import Runnable
 from langchain_ollama import ChatOllama
@@ -6,8 +9,29 @@ from langchain_core.prompts.chat import (
     SystemMessagePromptTemplate,
     ChatPromptTemplate
 )
+from mistralai import Mistral
+from dotenv import load_dotenv
 
 from document_retriever import retrieve_docs
+
+
+def retrieve_context(query, retriever):
+    """
+    Retrieve the context for a given query, based on the retriever
+
+    Args:
+        query: User input
+        retriever: Retriever object
+
+    Returns:
+        Formatted context matching the user's query
+    """
+
+    docs = retrieve_docs(retriever, query)
+    context = _format_context(docs)
+
+    return context
+
 
 def _format_context(docs: list[Document]) -> str:
     """
@@ -22,54 +46,143 @@ def _format_context(docs: list[Document]) -> str:
     context = "\n\n".join(d.page_content for d in docs)
     return context
 
-def build_llm(model: str) -> tuple[Runnable, str]:
-    """
-    Create the local Ollama-backed chat model and a simple prompt chain.
+class LlmModel(abc.ABC):
+    @abc.abstractmethod
+    def build_llm(self, model: str) -> Runnable:
+        """
+        Construct a simple LLM chain with a system and human prompt.
 
-    Args:
-        model: Name of the local Ollama model to load (e.g., "llama3").
+        Args:
+            model: Name of the local Ollama model (e.g., 'llama3').
 
-    Returns:
-        A tuple (chain, llm) where:
-          - chain: a Runnable that accepts a dict {"query": str, "context": str}
-                   and can be invoked via .invoke({...}). It produces a message-like
-                   object with a .content string used as the model’s answer.
-          - llm: the name of the loaded Ollama model, e.g., "llama3.
-    """
-    print("Loading local model...")
-    llm = ChatOllama(model=model)
-    prompt = ChatPromptTemplate([
-        SystemMessagePromptTemplate.from_template(
-            "You are a helpful assistant. Answer by using the provided context."
-            "If you are unsure of the answer, just say that you don't know and don't make up an answer."),
-        HumanMessagePromptTemplate.from_template("Query: {query}\n\nContext:\n{context}"),
-    ])
-    chain = prompt | llm
-    return chain, model
+        Returns:
+            A runnable chain compatible with .invoke({"query": ..., "context": ...}).
+        """
+        pass
 
-def generate_answer(
-    query: str,
-    retriever,
-    chain,
-) -> tuple[str, list[Document]]:
-    """
-    Generate an answer grounded in the retrieved context.
+    @abc.abstractmethod
+    def generate_answer(
+            self,
+            query: str,
+            retriever,
+        ) -> str:
+        """
+        Generate an answer grounded in the retrieved context.
 
-    Args:
-        query: The user query.
-        retriever: A retriever object.
-        chain: Runnable chain created by build_llm.
+        Args:
+            query: The user query.
+            retriever: A retriever object.
 
-    Returns:
-        Model answer as a string and the retrieved documents as a list of Document objects.
-    """
-    # Retrieve top documents for the question
-    docs = retrieve_docs(retriever, query)
-    context = _format_context(docs)
-    print("Generating answer...")
-    # The chain returns a message-like object with .content
-    answer = (chain.invoke({"query": query, "context": context})).content
-    return answer, docs
+        Returns:
+            Model answer as a string.
+        """
+        pass
 
-# there are many more models provided by langchain
-# like e.g. llama2, llama3, gpt-4, etc.
+class LangchainModel(LlmModel):
+    def __init__(self, model: str):
+        """
+        Creates langchain model class and invokes build_llm.
+
+        Args:
+            model: model identifier
+        """
+
+        self.chain = self.build_llm(model)
+
+        # there are many more models provided by langchain
+        # like e.g. llama2, llama3, gpt-4, etc.
+
+
+    def build_llm(self, model: str) -> Runnable:
+        """
+        Returns chain used as model by langchain
+        """
+
+        print("Loading local model...")
+        llm = ChatOllama(model=model)
+        prompt = ChatPromptTemplate([
+            SystemMessagePromptTemplate.from_template(
+                "You are a helpful assistant. Answer by using the provided context."
+                "If you are unsure of the answer, just say that you don't know and don't make up an answer."),
+            HumanMessagePromptTemplate.from_template("Query: {query}\n\nContext:\n{context}"),
+        ])
+        chain = prompt | llm
+        return chain
+
+
+    def generate_answer(
+        self,
+        query: str,
+        retriever,
+    ) -> str:
+        """
+        Generate an answer grounded in the retrieved context using the langchain model.
+        """
+
+        # Retrieve top documents for the question
+        context = retrieve_context(query, retriever)
+        print("Generating answer...")
+        # The chain returns a message-like object with .content
+        answer = (self.chain.invoke({"query": query, "context": context})).content
+        return answer
+
+class MistralModel(LlmModel):
+    def __init__(self, model: str):
+        """
+        Creates langchain model class and invokes build_llm.
+
+        Args:
+            model: model identifier
+        """
+
+        self.model = model
+        self.client = self.build_llm(self.model)
+
+    def build_llm(self, model):
+        """
+        Builds mistral model. Needs the API Key.
+        """
+
+        print("Setting up remote model access...")
+        load_dotenv()
+        api_key = os.environ["MISTRAL_API_KEY"]
+        client = Mistral(api_key=api_key)
+
+        return client
+
+    def generate_answer(self, query, retriever):
+        """
+        Generating answer using mistral model.
+        """
+
+        # Retrieve top documents for the question
+        context = retrieve_context(query, retriever)
+
+        prompt = f"""
+        Context information is below.
+        ---------------------
+        {context}
+        ---------------------
+        Given the context information and not prior knowledge, answer the query.
+        Query: {query}
+        Answer:
+        """
+
+        messages = [
+            {
+                "role":"system",
+                "content": "You are an expert, checking facts in statements made in public. If you are unsure do not make up information, instead say that you are missing information."
+            },
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ]
+
+        print("Sending request...")
+        chat_response = self.client.chat.complete(
+            model= self.model,
+            messages = messages
+        )
+
+        return chat_response.choices[0].message.content

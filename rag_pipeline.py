@@ -1,13 +1,11 @@
 import streamlit as st
-from langchain_core.documents import Document
-from langchain_core.runnables import Runnable
 from langchain_core.vectorstores import VectorStoreRetriever
 
 from document_loader import load_web_page
 from document_splitter import split_documents
 from embed_model import get_embeddings_model
 from vector_database import save_vectorstore, load_vectorstore, get_retriever
-from llm_model import build_llm, generate_answer
+from llm_model import MistralModel, LlmModel
 
 def _init_page() -> None:
     """
@@ -20,7 +18,7 @@ def _init_page() -> None:
     )
     st.title("Automated Counterstatement Generation against Misinformation via Generative AI")
 
-def load_rag() -> tuple[VectorStoreRetriever, Runnable, str, str]:
+def load_rag(chain: LlmModel, llm: str) -> tuple[VectorStoreRetriever, LlmModel, str, str]:
     """
     Run the RAG pipeline for a single query and return the model answer plus the
     retrieved contexts in rank order.
@@ -51,10 +49,6 @@ def load_rag() -> tuple[VectorStoreRetriever, Runnable, str, str]:
 
     # Configure retriever (k controls number of top documents to fetch)
     retriever = get_retriever(vectorstore, k=3)
-
-    # Build the LLM chain and accept a user query
-    chain, llm = build_llm("llama3")
-
     return retriever, chain, llm, embedder
 
 def main() -> None:
@@ -69,12 +63,17 @@ def main() -> None:
     """
     _init_page()
 
-    query = st.text_input(label="Say something: ", value="Is the vaccine effective?")
-    retriever, chain = load_rag()[:2] # only return retriever and chain here
+    # Use Mixtral (open-mixtral-8x7b)
+    llm = "open-mixtral-8x7b"
+    mixtral = MistralModel(llm)
+    retriever = load_rag(chain=mixtral, llm=llm)[0] # setup model
+
+    # load_rag(llm_model=MistralModel, llm="open-mixtral-8x7b")
+    query = st.text_input(label="Say something: ", value="Is the vaccine effective?")  # access query
 
     # Generate and display an answer grounded in the retrieved context
-    answer, docs = generate_answer(query, retriever, chain)
-    st.write("Answer: ", answer)
+    answer = mixtral.generate_answer(query, retriever)  # generate answer
+    st.write("Answer: ", answer)  # print answer
 
 if __name__ == "__main__":
     main()
