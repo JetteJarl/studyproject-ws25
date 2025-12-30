@@ -74,7 +74,7 @@ class LlmModel(abc.ABC):
             retriever: A retriever object.
 
         Returns:
-            Model answer as a string.
+            Model answer as a string along with the retrieved context.
         """
         pass
 
@@ -185,4 +185,5 @@ class MistralModel(LlmModel):
             messages = messages
         )
 
-        return chat_response.choices[0].message.content
+        answer = chat_response.choices[0].message.content
+        return answer, context

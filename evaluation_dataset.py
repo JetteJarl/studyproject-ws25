@@ -2,7 +2,7 @@ from typing import List
 
 import pandas as pd
 
-from llm_model import generate_answer
+from llm_model import LlmModel
 from rag_pipeline import load_rag
 
 # Build a lightweight reference text. If you can’t extract evidence sentences,
@@ -53,7 +53,7 @@ def load_fever_split(sample_size: int = 200, seed: int = 7) -> pd.DataFrame:
     df = df[["user_input", "ground_truth", "label"]].reset_index(drop=True)
     return df
 
-def run_pipeline_on_querys(df: pd.DataFrame) -> tuple[pd.DataFrame, str, str]:
+def run_pipeline_on_querys(df: pd.DataFrame, chain: LlmModel, llm: str) -> tuple[pd.DataFrame, str, str]:
     """
     Execute the RAG pipeline over the provided queries and collect answers/contexts.
 
@@ -71,11 +71,24 @@ def run_pipeline_on_querys(df: pd.DataFrame) -> tuple[pd.DataFrame, str, str]:
     answers: List[str] = []
     contexts_list: List[List[str]] = []
 
-    retriever, chain, llm, embedder = load_rag()
+    retriever, chain, llm, embedder = load_rag(chain, llm)
 
     for query in df["user_input"].tolist():
-        answer, contexts = generate_answer(query, retriever, chain)
-        answers.append(answer)
+        result = chain.generate_answer(query, retriever)
+        # answers.append(answer)
+        if isinstance(result, tuple) and len(result) >= 2:
+            answer, contexts = result[0], result[1]
+        else:
+            answer, contexts = result, None
+
+        answers.append(answer if isinstance(answer, str) else str(answer))
+
+        # Normalize contexts to a list
+        if contexts is None:
+            contexts = []
+        elif isinstance(contexts, str):
+            contexts = [contexts]
+
         # Ensure contexts is a list of strings
         clean_contexts = []
         for c in contexts or []:

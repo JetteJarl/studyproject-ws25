@@ -1,53 +1,83 @@
-from langchain_ollama import OllamaLLM
+import os
+import asyncio
+from typing import Any, List
+
+from dotenv import load_dotenv
+from langchain_core.outputs import Generation, LLMResult
+from mistralai import Mistral
+
 from langchain_huggingface import HuggingFaceEmbeddings
 from ragas.llms.base import LangchainLLMWrapper
 from ragas.embeddings.base import BaseRagasEmbeddings
 
-class LocalOllamaRagasLLM(LangchainLLMWrapper):
-    """
-    LangChain-to-Ragas adapter for a local Ollama chat model.
 
-    This wrapper exposes a LangChain OllamaLLM instance through the Ragas LLM
-    interface so it can be used as a judge/model within Ragas metrics.
+class _MistralAsyncAdapter:
+    """
+    Adapter implementing the subset of LangChain LLM interface that Ragas
+    (through LangchainLLMWrapper) uses: `agenerate_prompt`.
+
+    It returns a LangChain `LLMResult` with `Generation` objects.
+    """
+
+    def __init__(self, model: str):
+        load_dotenv()
+        api_key = os.environ["MISTRAL_API_KEY"]
+        self._client = Mistral(api_key=api_key)
+        self._model = model
+
+    def _prompt_to_text(self, p: Any) -> str:
+        if isinstance(p, str):
+            return p
+        # LangChain PromptValue has .to_string()
+        to_string = getattr(p, "to_string", None)
+        if callable(to_string):
+            return to_string()
+        return str(p)
+
+    def _complete_one(self, prompt_text: str) -> str:
+        resp = self._client.chat.complete(
+            model=self._model,
+            messages=[
+                {"role": "system", "content": "You are a strict evaluator. Follow instructions exactly."},
+                {"role": "user", "content": prompt_text},
+            ],
+        )
+        return resp.choices[0].message.content
+
+    async def agenerate_prompt(self, prompts: List[Any], **kwargs: Any) -> LLMResult:
+        prompt_texts = [self._prompt_to_text(p) for p in prompts]
+
+        async def _run_one(t: str) -> str:
+            return await asyncio.to_thread(self._complete_one, t)
+
+        outputs = await asyncio.gather(*[_run_one(t) for t in prompt_texts])
+
+        generations = [[Generation(text=o)] for o in outputs]
+        return LLMResult(generations=generations)
+
+    async def apredict(self, prompt: str) -> str:
+        # Convenience; not required if agenerate_prompt exists, but harmless.
+        return await asyncio.to_thread(self._complete_one, prompt)
+
+
+class MistralRagasLLM(LangchainLLMWrapper):
+    """
+    Ragas LLM wrapper using the Mistral API directly (no Ollama).
 
     Parameters:
-        model: Name of the Ollama model available locally (e.g., "llama3", "mistral").
-        base_url: HTTP endpoint of the Ollama server (e.g., "http://localhost:11434").
-
-    Attributes:
-        langchain_llm: Underlying LangChain OllamaLLM client.
-        bypass_temperature: Hint for Ragas to ignore temperature where applicable.
-        is_finished_parser: Optional callable to detect end-of-generation (unused here).
-        run_config: Optional per-run configuration set via set_run_config.
+        model: Mistral model name, e.g. "open-mixtral-8x7b"
     """
-    def __init__(self, model: str, base_url: str):
-        self.langchain_llm = OllamaLLM(model=model, base_url=base_url)
+
+    def __init__(self, model: str):
+        load_dotenv()
+        self.langchain_llm = _MistralAsyncAdapter(model=model)
         self.bypass_temperature = True
         self.is_finished_parser = None
-
-    async def _agenerate(self, prompt: str) -> str:
-        """
-        Asynchronously generate a completion for a given prompt.
-
-        Parameters:
-            prompt: Input text prompt to be sent to the Ollama model.
-
-        Returns:
-            The generated text string.
-        """
-        return await self.langchain_llm.apredict(prompt)
+        self.run_config = None
 
     def set_run_config(self, config):
-        """
-        Attach a per-run configuration object for downstream consumers.
-
-        Parameters:
-            config: Arbitrary configuration object stored on the instance.
-
-        Returns:
-            None.
-        """
         self.run_config = config
+
 
 class RagasHuggingFaceWrapper(BaseRagasEmbeddings):
     """

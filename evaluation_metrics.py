@@ -26,8 +26,9 @@ from ragas.metrics import (
     SemanticSimilarity
 )
 
-from evaluation_wrappers import LocalOllamaRagasLLM, RagasHuggingFaceWrapper
+from evaluation_wrappers import MistralRagasLLM, RagasHuggingFaceWrapper
 from evaluation_dataset import load_fever_split, run_pipeline_on_querys
+from llm_model import MistralModel
 
 def evaluate_with_ragas(df: pd.DataFrame, llm: str, embedder: str) -> pd.DataFrame:
     """
@@ -48,7 +49,8 @@ def evaluate_with_ragas(df: pd.DataFrame, llm: str, embedder: str) -> pd.DataFra
     ragas_dataset = Dataset.from_pandas(eval_df)
 
     # Wrap the LLM and embedder backends with Ragas-specific wrappers
-    llm = LocalOllamaRagasLLM(llm, base_url="http://localhost:11434")
+    # llm = LocalOllamaRagasLLM(llm, base_url="http://localhost:11434")
+    llm = MistralRagasLLM(llm)
     embedder = RagasHuggingFaceWrapper(embedder)
 
     # Naming of parameters is here actually necessary
@@ -81,11 +83,13 @@ def main():
       3) Evaluate outputs with Ragas and save results.
     """
     df = load_fever_split(sample_size=10)
-    df, llm, embedder = run_pipeline_on_querys(df)
+    llm = "open-mixtral-8x7b"
+    chain = MistralModel(llm)
+    df, llm, embedder = run_pipeline_on_querys(df, chain, llm)
     per_row = evaluate_with_ragas(df, llm, embedder)
 
     # Save detailed results
-    per_row.to_csv("ragas_fever_per_row.csv", index=False)
+    per_row.to_csv("eval/ragas_fever_per_row_mistral.csv", index=False)
     print("Saved metrics results")
 
 
