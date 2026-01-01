@@ -231,3 +231,6 @@ doc.pdf
 
 # Data
 /data/
+
+# Evaluation
+/eval/
