@@ -1,7 +1,9 @@
 import os
 import asyncio
+import random
 from typing import Any, List
 
+import numpy as np
 from dotenv import load_dotenv
 from langchain_core.outputs import Generation, LLMResult
 from mistralai import Mistral
@@ -13,28 +15,48 @@ from ragas.embeddings.base import BaseRagasEmbeddings
 
 class _MistralAsyncAdapter:
     """
-    Adapter implementing the subset of LangChain LLM interface that Ragas
-    (through LangchainLLMWrapper) uses: `agenerate_prompt`.
+    Adapter implementing the subset of LangChain LLM interface that Ragas uses.
 
-    It returns a LangChain `LLMResult` with `Generation` objects.
+    Adds:
+      - concurrency limiting (semaphore)
+      - retry w/ exponential backoff on HTTP 429 (rate limiting)
+      - hard timeout per request to prevent "100% but never finishes"
     """
 
-    def __init__(self, model: str):
+    def __init__(
+        self,
+        model: str,
+        *,
+        max_concurrency: int = 1,
+        request_timeout_s: float = 90.0,
+        max_retries: int = 5,
+        base_backoff_s: float = 1.0,
+        max_backoff_s: float = 20.0,
+    ):
         load_dotenv()
         api_key = os.environ["MISTRAL_API_KEY"]
         self._client = Mistral(api_key=api_key)
         self._model = model
 
+        self._sem = asyncio.Semaphore(max(1, int(max_concurrency)))
+        self._request_timeout_s = float(request_timeout_s)
+        self._max_retries = int(max_retries)
+        self._base_backoff_s = float(base_backoff_s)
+        self._max_backoff_s = float(max_backoff_s)
+
     def _prompt_to_text(self, p: Any) -> str:
         if isinstance(p, str):
             return p
-        # LangChain PromptValue has .to_string()
         to_string = getattr(p, "to_string", None)
         if callable(to_string):
             return to_string()
         return str(p)
 
-    def _complete_one(self, prompt_text: str) -> str:
+    def _is_rate_limit_error(self, exc: Exception) -> bool:
+        msg = str(exc)
+        return "Status 429" in msg or "rate limit" in msg.lower() or "rate_limited" in msg.lower()
+
+    def _complete_one_sync(self, prompt_text: str) -> str:
         resp = self._client.chat.complete(
             model=self._model,
             messages=[
@@ -44,20 +66,39 @@ class _MistralAsyncAdapter:
         )
         return resp.choices[0].message.content
 
+    async def _complete_one(self, prompt_text: str) -> str:
+        async with self._sem:
+            attempt = 0
+            while True:
+                try:
+                    # Hard timeout around the thread call
+                    return await asyncio.wait_for(
+                        asyncio.to_thread(self._complete_one_sync, prompt_text),
+                        timeout=self._request_timeout_s,
+                    )
+                except TimeoutError as exc:
+                    attempt += 1
+                    if attempt > self._max_retries:
+                        raise
+                    backoff = min(self._max_backoff_s, self._base_backoff_s * (2 ** (attempt - 1)))
+                    backoff = backoff * (0.7 + 0.6 * random.random())
+                    await asyncio.sleep(backoff)
+                except Exception as exc:
+                    attempt += 1
+                    if not self._is_rate_limit_error(exc) or attempt > self._max_retries:
+                        raise
+                    backoff = min(self._max_backoff_s, self._base_backoff_s * (2 ** (attempt - 1)))
+                    backoff = backoff * (0.7 + 0.6 * random.random())
+                    await asyncio.sleep(backoff)
+
     async def agenerate_prompt(self, prompts: List[Any], **kwargs: Any) -> LLMResult:
         prompt_texts = [self._prompt_to_text(p) for p in prompts]
-
-        async def _run_one(t: str) -> str:
-            return await asyncio.to_thread(self._complete_one, t)
-
-        outputs = await asyncio.gather(*[_run_one(t) for t in prompt_texts])
-
+        outputs = await asyncio.gather(*[self._complete_one(t) for t in prompt_texts])
         generations = [[Generation(text=o)] for o in outputs]
         return LLMResult(generations=generations)
 
     async def apredict(self, prompt: str) -> str:
-        # Convenience; not required if agenerate_prompt exists, but harmless.
-        return await asyncio.to_thread(self._complete_one, prompt)
+        return await self._complete_one(prompt)
 
 
 class MistralRagasLLM(LangchainLLMWrapper):
@@ -67,9 +108,8 @@ class MistralRagasLLM(LangchainLLMWrapper):
     Parameters:
         model: Mistral model name, e.g. "open-mixtral-8x7b"
     """
-
     def __init__(self, model: str):
-        load_dotenv()
+        # max_concurrency=1 is slow but stable; raise to 2 only if you stop seeing 429/TimeoutError.
         self.langchain_llm = _MistralAsyncAdapter(model=model)
         self.bypass_temperature = True
         self.is_finished_parser = None
@@ -96,29 +136,39 @@ class RagasHuggingFaceWrapper(BaseRagasEmbeddings):
     def __init__(self, model_name: str):
         self.lc_embedder = HuggingFaceEmbeddings(model_name=model_name)
 
-    def embed_query(self, query: str):
+    def _to_1d_list(self, vec) -> list[float]:
+        arr = np.asarray(vec, dtype=float)
+        if arr.ndim == 2 and arr.shape[0] == 1:
+            arr = arr[0]
+        if arr.ndim != 1:
+            raise ValueError(f"Expected 1D embedding vector, got shape {arr.shape}")
+        return arr.tolist()
+
+    def embed_query(self, text: str) -> list[float]:
         """
         Compute an embedding vector for a single query string.
-
-        Parameters:
-            query: Input text.
-
-        Returns:
-            A vector (list[float]) representing the query embedding.
+        Must return a 1D list[float].
         """
-        return self.lc_embedder.embed_query(query)
+        vec = self.lc_embedder.embed_query(text)
+        return self._to_1d_list(vec)
 
-    def embed_documents(self, docs: list[str]):
+    def embed_documents(self, docs: list[str]) -> list[list[float]]:
         """
         Compute embedding vectors for multiple documents.
-
-        Parameters:
-            docs: List of input texts.
-
-        Returns:
-            A list of vectors (list[list[float]]) for each document.
+        Must return a list of 1D list[float] vectors of equal length.
         """
-        return self.lc_embedder.embed_documents(docs)
+        vecs = self.lc_embedder.embed_documents(docs)
+        out = [self._to_1d_list(v) for v in vecs]
+
+        # sanity check: all dims must match
+        if out:
+            d0 = len(out[0])
+            for i, v in enumerate(out):
+                if len(v) != d0:
+                    raise ValueError(
+                        f"Inconsistent embedding dims in batch: vec[0]={d0}, vec[{i}]={len(v)}"
+                    )
+        return out
 
     async def aembed_query(self, query: str):
         """

@@ -1,21 +1,21 @@
-# retrieval: (context) precision(@k), (context) recall(@k), mean reciprocal rank (MRR), normalized discounted cumulative gain (NDCG), hit rate, noise sensitivity
-# generation: faithfulness, answer relevancy, context relevancy, correctness, groundedness, completeness, hallucination rate, structure, coherence/clarity, conciseness
-# system: latency, source quality, citation quality, toxicity/safety, robustness
-# human: helpfulness, truthfulness, persuasiveness, bias/neutrality, tone, readability, structure
-# methods: evaluation dataset, LLM as a judge, human evaluation
+# Retrieval: (context) precision(@k), (context) recall(@k), mean reciprocal rank (MRR), normalized discounted cumulative gain (NDCG), hit rate, noise sensitivity
+# Generation: faithfulness, answer relevancy, context relevancy, correctness, groundedness, completeness, hallucination rate, structure, coherence/clarity, conciseness
+# System: latency, source quality, citation quality, toxicity/safety, robustness
+# Human: helpfulness, truthfulness, persuasiveness, bias/neutrality, tone, readability, structure
+# Methods: evaluation dataset, LLM as a judge, human evaluation
 
 import pandas as pd
 from datasets import Dataset
 from ragas import evaluate
 # Note: not all metrics mentioned above are available in ragas. Especially these subjective metrics like e.g. bias
-# retrieval metrics
+# Retrieval metrics
 from ragas.metrics import (
     ContextPrecision,
     ContextRecall,
     ContextEntityRecall,
     NoiseSensitivity
 )
-# generation metrics
+# Generation metrics
 from ragas.metrics import (
     Faithfulness,
     ResponseGroundedness,
@@ -49,7 +49,6 @@ def evaluate_with_ragas(df: pd.DataFrame, llm: str, embedder: str) -> pd.DataFra
     ragas_dataset = Dataset.from_pandas(eval_df)
 
     # Wrap the LLM and embedder backends with Ragas-specific wrappers
-    # llm = LocalOllamaRagasLLM(llm, base_url="http://localhost:11434")
     llm = MistralRagasLLM(llm)
     embedder = RagasHuggingFaceWrapper(embedder)
 
