@@ -3,12 +3,6 @@ import os
 
 from langchain_core.documents import Document
 from langchain_core.runnables import Runnable
-from langchain_ollama import ChatOllama
-from langchain_core.prompts.chat import (
-    HumanMessagePromptTemplate,
-    SystemMessagePromptTemplate,
-    ChatPromptTemplate
-)
 from mistralai import Mistral
 from dotenv import load_dotenv
 
