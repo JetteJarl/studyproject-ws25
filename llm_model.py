@@ -78,54 +78,6 @@ class LlmModel(abc.ABC):
         """
         pass
 
-class LangchainModel(LlmModel):
-    def __init__(self, model: str):
-        """
-        Creates langchain model class and invokes build_llm.
-
-        Args:
-            model: model identifier
-        """
-
-        self.chain = self.build_llm(model)
-
-        # there are many more models provided by langchain
-        # like e.g. llama2, llama3, gpt-4, etc.
-
-
-    def build_llm(self, model: str) -> Runnable:
-        """
-        Returns chain used as model by langchain
-        """
-
-        print("Loading local model...")
-        llm = ChatOllama(model=model)
-        prompt = ChatPromptTemplate([
-            SystemMessagePromptTemplate.from_template(
-                "You are a helpful assistant. Answer by using the provided context."
-                "If you are unsure of the answer, just say that you don't know and don't make up an answer."),
-            HumanMessagePromptTemplate.from_template("Query: {query}\n\nContext:\n{context}"),
-        ])
-        chain = prompt | llm
-        return chain
-
-
-    def generate_answer(
-        self,
-        query: str,
-        retriever,
-    ) -> str:
-        """
-        Generate an answer grounded in the retrieved context using the langchain model.
-        """
-
-        # Retrieve top documents for the question
-        context = retrieve_context(query, retriever)
-        print("Generating answer...")
-        # The chain returns a message-like object with .content
-        answer = (self.chain.invoke({"query": query, "context": context})).content
-        return answer
-
 class MistralModel(LlmModel):
     def __init__(self, model: str):
         """
