@@ -1,5 +1,6 @@
 import abc
 import os
+from typing import List
 
 from langchain_core.documents import Document
 from langchain_core.runnables import Runnable
@@ -59,7 +60,7 @@ class LlmModel(abc.ABC):
             self,
             query: str,
             retriever,
-        ) -> str:
+        ) -> tuple[str, List[str]]:
         """
         Generate an answer grounded in the retrieved context.
 
