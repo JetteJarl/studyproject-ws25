@@ -60,9 +60,19 @@ class _MistralAsyncAdapter:
         resp = self._client.chat.complete(
             model=self._model,
             messages=[
-                {"role": "system", "content": "You are a strict evaluator. Follow instructions exactly."},
+                {
+                    "role": "system",
+                    "content": (
+                        "You are a strict evaluation engine.\n"
+                        "You MUST follow the user's instructions EXACTLY.\n"
+                        "If the user requests JSON, output ONLY valid JSON (no markdown, no extra text).\n"
+                        "Never omit required fields. If you are uncertain, still provide the required keys "
+                        "with a best-effort value (e.g., verdict='unknown') and a short reason."
+                    ),
+                },
                 {"role": "user", "content": prompt_text},
             ],
+            temperature=0.0,
         )
         return resp.choices[0].message.content
 
