@@ -53,20 +53,104 @@ def load_fever_split(sample_size: int = 200, seed: int = 7) -> pd.DataFrame:
     df = df[["user_input", "ground_truth", "label"]].reset_index(drop=True)
     return df
 
-def run_pipeline_on_querys(df: pd.DataFrame, chain: LlmModel, llm: str) -> tuple[pd.DataFrame, str, str]:
+def _unpack_answer_and_contexts(result: tuple[object, object]) -> tuple[str, object]:
     """
-    Execute the RAG pipeline over the provided queries and collect answers/contexts.
+    Validate and unpack the model output.
 
-    Parameters:
-        df: Input DataFrame must contain column "user_input" with user queries.
+    The pipeline expects the model to return exactly two items:
+    ``(answer, contexts)``.
+
+    Args:
+        result: The raw result returned by ``chain.generate_answer(...)``.
 
     Returns:
-        A tuple (out_df, llm, embedder) where:
-            - out_df: df with two added columns:
-                - "answer": model-generated answer string per query.
-                - "contexts": list[str] per query containing retrieved context chunks.
-            - llm: identifier/name of the LLM used by the pipeline.
-            - embedder: identifier/name of the embedding model used in retrieval.
+        A tuple ``(answer, contexts)`` where:
+          - answer: The answer coerced to ``str``.
+          - contexts: The raw contexts payload (to be normalized separately).
+
+    Raises:
+        ValueError: If the return value is not a 2-tuple.
+    """
+    if not isinstance(result, tuple) or len(result) != 2:
+        raise ValueError(
+            "generate_answer(...) must return a 2-tuple (answer, contexts). "
+            f"Got {type(result).__name__} with value: {result!r}"
+        )
+    answer, contexts = result
+    return str(answer), contexts
+
+def _normalize_contexts(contexts: object) -> List[str]:
+    """
+    Convert a contexts payload into the Ragas-compatible format ``list[str]``.
+
+    Supported input shapes:
+        - ``None`` -> []
+        - ``str`` -> [str]
+        - iterable of strings
+        - iterable of Document-like objects (having ``page_content``)
+
+    Args:
+        contexts: Raw contexts payload from ``generate_answer``.
+
+    Returns:
+        A list of cleaned context passage strings. Each passage is stripped of
+        leading/trailing whitespace.
+    """
+    if contexts is None:
+        return []
+
+    if isinstance(contexts, str):
+        items = [contexts]
+    else:
+        items = contexts  # expected iterable
+
+    clean: list[str] = []
+    for c in items:
+        text = c.page_content if hasattr(c, "page_content") else str(c)
+        clean.append(text.strip())
+    return clean
+
+def run_pipeline_on_querys(df: pd.DataFrame, chain: LlmModel, llm: str) -> tuple[pd.DataFrame, str, str]:
+    """
+    Run the RAG pipeline for each query in a DataFrame and collect model outputs.
+
+    This function initializes (or loads) the retrieval stack via :func:`rag_pipeline.load_rag`,
+    then iterates over ``df["user_input"]`` and calls ``chain.generate_answer(query, retriever)``.
+    The outputs are normalized into a format compatible with Ragas evaluation:
+    - ``answer`` is stored as a string
+    - ``contexts`` is stored as ``list[str]`` (one list per sample)
+
+    Notes:
+        - This function relies on two helpers:
+            - ``_unpack_answer_and_contexts(...)``: validates/unpacks the model return value.
+            - ``_normalize_contexts(...)``: converts contexts into ``list[str]`` by extracting
+              ``page_content`` from Document-like objects or coercing items to strings.
+        - The expected return shape of ``chain.generate_answer(...)`` is the one supported by
+          ``_unpack_answer_and_contexts(...)``. If the model returns an unexpected shape,
+          the helper may raise a ``ValueError`` (depending on its implementation).
+        - The retrieval configuration (embedding model, vector store, ``k``, etc.) is defined
+          inside :func:`rag_pipeline.load_rag`.
+
+    Args:
+        df: Input DataFrame that must contain a ``"user_input"`` column with user queries.
+            Any additional columns are preserved in the output.
+        chain: Model implementation used to generate answers (must implement
+            :meth:`llm_model.LlmModel.generate_answer`).
+        llm: Identifier/name of the generator model. Passed through to
+            :func:`rag_pipeline.load_rag` and returned for logging/reporting.
+
+    Returns:
+        A tuple ``(out_df, llm, embedder)`` where:
+            - out_df: Copy of the input DataFrame with two added columns:
+                - ``"answer"``: model-generated answer (``str``) per row.
+                - ``"contexts"``: normalized context passages (``list[str]``) per row.
+            - llm: The resolved generator model identifier/name actually used.
+            - embedder: The embedding model identifier/name used by the retriever.
+
+    Raises:
+        KeyError: If ``"user_input"`` is missing from the input DataFrame.
+        ValueError: If the model output cannot be unpacked by ``_unpack_answer_and_contexts``.
+        Exception: Propagates exceptions raised by retriever initialization or model calls.
     """
     answers: List[str] = []
     contexts_list: List[List[str]] = []
@@ -75,28 +159,10 @@ def run_pipeline_on_querys(df: pd.DataFrame, chain: LlmModel, llm: str) -> tuple
 
     for query in df["user_input"].tolist():
         result = chain.generate_answer(query, retriever)
-        # answers.append(answer)
-        if isinstance(result, tuple) and len(result) >= 2:
-            answer, contexts = result[0], result[1]
-        else:
-            answer, contexts = result, None
+        answer, contexts = _unpack_answer_and_contexts(result)
 
-        answers.append(answer if isinstance(answer, str) else str(answer))
-
-        # Normalize contexts to a list
-        if contexts is None:
-            contexts = []
-        elif isinstance(contexts, str):
-            contexts = [contexts]
-
-        # Ensure contexts is a list of strings
-        clean_contexts = []
-        for c in contexts or []:
-            if hasattr(c, "page_content"):
-                clean_contexts.append(c.page_content.strip())
-            else:
-                clean_contexts.append(str(c).strip())
-        contexts_list.append(clean_contexts)
+        answers.append(answer)
+        contexts_list.append(_normalize_contexts(contexts))
 
     out = df.copy()
     out["answer"] = answers
