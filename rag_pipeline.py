@@ -72,7 +72,7 @@ def main() -> None:
     query = st.text_input(label="Say something: ", value="Is the vaccine effective?")  # access query
 
     # Generate and display an answer grounded in the retrieved context
-    answer = mixtral.generate_answer(query, retriever)  # generate answer
+    answer, _ = mixtral.generate_answer(query, retriever)  # generate answer
     st.write("Answer: ", answer)  # print answer
 
 if __name__ == "__main__":
