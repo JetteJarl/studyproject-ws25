@@ -3,6 +3,7 @@
 # System: latency, source quality, citation quality, toxicity/safety, robustness
 # Human: helpfulness, truthfulness, persuasiveness, bias/neutrality, tone, readability, structure
 # Methods: evaluation dataset, LLM as a judge, human evaluation
+from pathlib import Path
 
 import pandas as pd
 from datasets import Dataset
@@ -88,6 +89,7 @@ def main():
     per_row = evaluate_with_ragas(df, llm, embedder)
 
     # Save detailed results
+    Path("eval").mkdir(parents=True, exist_ok=True)
     per_row.to_csv("eval/ragas_fever_per_row_mistral.csv", index=False)
     print("Saved metrics results")
 
