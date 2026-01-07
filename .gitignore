@@ -230,7 +230,7 @@ doc.pdf
 /chroma_db/
 
 # Data
-/data/
+#/data/
 
 # Evaluation
 /eval/
