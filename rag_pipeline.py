@@ -4,7 +4,7 @@ from document_loader import load_web_page
 from document_splitter import split_documents
 from embed_model import get_embeddings_model
 from vector_database import save_vectorstore, load_vectorstore, get_retriever
-from llm_model import build_llm, generate_answer
+from llm_model import langchain_model, mistral_model
 from user_interface import init_page
 
 def main() -> None:
@@ -52,7 +52,9 @@ def main() -> None:
         retriever = get_retriever(vectorstore, number_relevant_chunks)
 
         # Build the LLM chain and accept a user query
-        chain = build_llm("tinyllama")
+        mixtral = mistral_model("open-mixtral-8x7b")
+        # llama3 = olama_model("llama3")
+
         query = st.text_area(
             label="Say something:",
             value="Is the vaccine effective?",
@@ -64,7 +66,7 @@ def main() -> None:
             if query:
                 # Show loading circle
                 with st.spinner("Generating answer..."):
-                    answer, context = generate_answer(query, retriever, chain)
+                    answer, context = mixtral.generate_answer(query, retriever)
                     st.write("Answer:")
                     st.write(answer)
                     with st.expander("Show Retrieved Context from Local Vector Database"):
