@@ -156,7 +156,7 @@ class mistral_model(llm_model):
         """
         
         # Retrieve top documents for the question
-        docs = retrieve_docs(query, retriever)
+        docs = retrieve_docs(retriever, query)
         context = _format_context(docs)
     
         prompt = f"""
