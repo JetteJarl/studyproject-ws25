@@ -1,10 +1,11 @@
 import streamlit as st
+from langchain_core.vectorstores import VectorStoreRetriever
 
 from document_loader import load_web_page
 from document_splitter import split_documents
 from embed_model import get_embeddings_model
 from vector_database import save_vectorstore, load_vectorstore, get_retriever
-from llm_model import langchain_model, mistral_model
+from llm_model import MistralModel, LlmModel
 
 def _init_page() -> None:
     """
@@ -17,23 +18,24 @@ def _init_page() -> None:
     )
     st.title("Automated Counterstatement Generation against Misinformation via Generative AI")
 
-def main() -> None:
+def load_rag(chain: LlmModel, llm: str) -> tuple[VectorStoreRetriever, LlmModel, str, str]:
     """
-    Entry point for the Streamlit RAG prototype.
+    Run the RAG pipeline for a single query and return the model answer plus the
+    retrieved contexts in rank order.
 
-    Steps:
-    - Read URL input.
-    - Initialize embeddings and vectorstore (load existing or build from URL).
-    - Build retriever and LLM chain.
-    - Accept a user query and generate an answer using retrieved context.
+    Returns:
+        A tuple (answer, contexts) where:
+          - answer is the generated answer as a string.
+          - contexts is a list of retrieved Document objects in ranking order.
+            For Ragas, convert these to a list of strings (e.g., [d.page_content for d in contexts]).
+          - llm is the name of the loaded Ollama model, e.g., "llama3".
+          - embedder is the name of the loaded embedding model, e.g., "sentence-transformers/all-mpnet-base-v2".
     """
-    _init_page()
-
     # Input: URL to scrape/load and index into the vector store if not present
-    url = st.text_input(label="Enter a URL to load:", value="https://en.wikipedia.org/wiki/COVID-19")
+    url = "https://en.wikipedia.org/wiki/COVID-19"
 
     # Initialize the embedding model name used for both indexing and retrieval
-    embeddings_model = get_embeddings_model("sentence-transformers/all-mpnet-base-v2")
+    embeddings_model, embedder  = get_embeddings_model("sentence-transformers/all-mpnet-base-v2")
     datastore_name = "chroma_db"
 
     # Attempt to load an existing vectorstore; if not found, ingest from the URL
@@ -47,24 +49,31 @@ def main() -> None:
 
     # Configure retriever (k controls number of top documents to fetch)
     retriever = get_retriever(vectorstore, k=3)
-    st.success("RAG Pipeline initialized!")
+    return retriever, chain, llm, embedder
 
-    # # Variant with Olama 
-    # # Build the LLM chain and accept a user query
-    # llama3 = olama_model("llama3")
-    # query = st.text_input(label="Say something: ", value="Is the vaccine effective?")
+def main() -> None:
+    """
+    Entry point for the Streamlit RAG prototype.
 
-    # # Generate and display an answer grounded in the retrieved context
-    # answer = llama3.generate_answer(query, retriever)
-    # st.write("Answer: ", answer)
+    Steps:
+    - Read URL input.
+    - Initialize embeddings and vectorstore (load existing or build from URL).
+    - Build retriever and LLM chain.
+    - Accept a user query and generate an answer using retrieved context.
+    """
+    _init_page()
 
     # Use Mixtral (open-mixtral-8x7b)
-    mixtral = mistral_model('open-mixtral-8x7b')    # setup model
-    query = st.text_input(label="Say something: ", value="Is the vaccine effective?")   # access query
+    llm = "open-mixtral-8x7b"
+    mixtral = MistralModel(llm) # setup model
+    retriever = load_rag(chain=mixtral, llm=llm)[0] # access retriever
 
-    answer = mixtral.generate_answer(query, retriever)  # generate answer
-    st.write("Answer: ", answer)    # print answer
+    # User input (enter false comment, fake news article etc...)
+    query = st.text_input(label="Say something: ", value="Is the vaccine effective?")  # access query
 
+    # Generate and display an answer grounded in the retrieved context
+    answer, _ = mixtral.generate_answer(query, retriever)  # generate answer
+    st.write("Answer: ", answer)  # print answer
 
 if __name__ == "__main__":
     main()
