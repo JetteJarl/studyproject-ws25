@@ -14,6 +14,7 @@ def load_rag(
     embedder: str,
     number_relevant_chunks: int
 ) -> tuple[VectorStoreRetriever, LlmModel, str, str]:
+    # TODO: Rework this method
     """
     Run the RAG pipeline for a single query and return the model answer plus the
     retrieved contexts in rank order.
@@ -56,6 +57,15 @@ def main() -> None:
     - Build retriever and LLM chain.
     - Accept a user query and generate an answer using retrieved context.
     """
+    # Setting variables
+    all_llms = {
+        "open-mixtral-8x7b" : MistralModel,
+        "mistral-small-2506": MistralModel
+    }
+
+    selected_llm = "open-mixtral-8x7b"
+    default_embedder = "sentence-transformers/all-mpnet-base-v2"
+
     # Initialize the Streamlit UI
     init_page()
 
@@ -63,11 +73,6 @@ def main() -> None:
     # After clicking "Start": init_page() should set st.session_state["rag_initialized"] = True.
     if not st.session_state.get("rag_initialized", False):
         st.stop()
-
-    # Use Mixtral (open-mixtral-8x7b)
-    llm = "open-mixtral-8x7b"
-    embedder = "sentence-transformers/all-mpnet-base-v2"
-    mixtral = MistralModel(llm) # setup model
     
     with st.expander("About", expanded=True):
         st.write("This system is designed to generate convincing counterstatements to false statements made by users in the internet.\n" \
@@ -76,15 +81,16 @@ def main() -> None:
 
         st.write("Our site uses a combination of AI and a manually maintained maintained database to not only be able to respond fast but also acurately to any given statement. The database consists of a combination of scientific publications, reports, and news articles from trusted sources.")
 
-        st.write(f"The system can be configured to use different llms or embeeding models. Currently it is using the {llm} as llm and the {embedder} as embedding model.")
+        st.write(f"The system can be configured to use different llms or embeeding models. Currently it is using the {selected_llm} as llm and the {default_embedder} as embedding model.")
 
     # Settings Menu
     with st.expander("Settings"):
+        # TODO: Add embedding selection
         # Reduce the width of the number input field to make it more compact
-        col_small, _ = st.columns([1, 9])  # 10% of container width
+        small_column, larger_column = st.columns([1, 5])  # 10% of container width /
 
         
-        with col_small:
+        with small_column:
             # UI control to choose the number of relevant chunks (top-k)
             number_relevant_chunks = st.number_input(
                 label="Number of relevant chunks",
@@ -95,13 +101,23 @@ def main() -> None:
                 help="How many context chunks the retriever should return for generating an answer. (Default: 3)"
             )
 
+        with larger_column:
+            llm_options = all_llms.keys()
+            selected_llm = st.selectbox("Select an LLM to be used:", llm_options, index=0)
+
+
+    # Instantiate LLM
+    # TODO: Check if selected llm is updated in reselection (are texts updated, maybe add a message) updates
+    client = all_llms[selected_llm]     # select corresponding client
+    llm = client(selected_llm)      # load llm
+
     query = st.text_area(
         label="Say something:",
         value="Climate change is not real. It is made up by communists to destroy the world economy.",
         help="Copy&paste a comment, a post, an entire (fake) news article etc. from social media or somewhere else."
     )
 
-    retriever = load_rag(mixtral, llm, embedder, number_relevant_chunks)[0]  # access retriever
+    retriever = load_rag(client, llm, default_embedder, number_relevant_chunks)[0]  # access retriever
 
     # Generate and display an answer and the retrieved context
     system_help_string = f"Your input is being processed by a RAG system. We are using a manually compiled database of sources to check claims being made in your input.\n Model: {llm}"
@@ -110,7 +126,7 @@ def main() -> None:
         if query:
             # Show loading circle
             with st.spinner("Generating answer..."):
-                answer, context = mixtral.generate_answer(query, retriever)
+                answer, context = llm.generate_answer(query, retriever)
                 st.write("Answer:")
                 st.write(answer)
                 with st.expander("Show Retrieved Context from Local Vector Database"):
