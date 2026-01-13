@@ -91,7 +91,9 @@ def main() -> None:
     retriever = load_rag(mixtral, llm, embedder, number_relevant_chunks)[0]  # access retriever
 
     # Generate and display an answer and the retrieved context
-    if st.button("Generate Answer"):
+    system_help_string = f"Your input is being processed by a RAG system. We are using a manually compiled database of sources to check claims being made in your input.\n Model: {llm}"
+    if st.button("Generate Answer", 
+                 help=system_help_string):
         if query:
             # Show loading circle
             with st.spinner("Generating answer..."):
