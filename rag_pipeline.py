@@ -69,22 +69,28 @@ def main() -> None:
     embedder = "sentence-transformers/all-mpnet-base-v2"
     mixtral = MistralModel(llm) # setup model
 
-    # Reduce the width of the number input field to make it more compact
-    col_small, _ = st.columns([1, 9])  # 10% of container width
-    with col_small:
-        # UI control to choose the number of relevant chunks (top-k)
-        number_relevant_chunks = st.number_input(
-            label="Number of relevant chunks",
-            min_value=1,
-            max_value=20,
-            value=3,
-            step=1,
-            help="How many context chunks the retriever should return for generating an answer. (Default: 3)"
-        )
+    st.write("This is a system to ")
+
+    # Settings Menu
+    with st.expander("Settings"):
+        # Reduce the width of the number input field to make it more compact
+        col_small, _ = st.columns([1, 9])  # 10% of container width
+
+        
+        with col_small:
+            # UI control to choose the number of relevant chunks (top-k)
+            number_relevant_chunks = st.number_input(
+                label="Number of relevant chunks",
+                min_value=1,
+                max_value=20,
+                value=3,
+                step=1,
+                help="How many context chunks the retriever should return for generating an answer. (Default: 3)"
+            )
 
     query = st.text_area(
         label="Say something:",
-        value="Is the vaccine effective?",
+        value="Climate change is not real. It is made up by communists to destroy the world economy.",
         help="Copy&paste a comment, a post, an entire (fake) news article etc. from social media or somewhere else."
     )
 
