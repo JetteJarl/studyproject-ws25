@@ -68,8 +68,15 @@ def main() -> None:
     llm = "open-mixtral-8x7b"
     embedder = "sentence-transformers/all-mpnet-base-v2"
     mixtral = MistralModel(llm) # setup model
+    
+    with st.expander("About", expanded=True):
+        st.write("This system is designed to generate convincing counterstatements to false statements made by users in the internet.\n" \
+        "In recent years it has become increasingly difficult to discern false statements from fact especially in discussions but especially in social media. \n" \
+        "Since our goal should not only be to label false statement as is, this site thrives to generate and present counterstatements that reach poeple")
 
-    st.write("This is a system to ")
+        st.write("Our site uses a combination of AI and a manually maintained maintained database to not only be able to respond fast but also acurately to any given statement. The database consists of a combination of scientific publications, reports, and news articles from trusted sources.")
+
+        st.write(f"The system can be configured to use different llms or embeeding models. Currently it is using the {llm} as llm and the {embedder} as embedding model.")
 
     # Settings Menu
     with st.expander("Settings"):
