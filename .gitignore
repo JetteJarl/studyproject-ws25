@@ -229,8 +229,5 @@ doc.pdf
 # Chroma database
 /chroma_db/
 
-# Data
-#/data/
-
 # Evaluation
 /eval/

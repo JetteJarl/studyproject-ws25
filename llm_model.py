@@ -9,25 +9,6 @@ from dotenv import load_dotenv
 
 from document_retriever import retrieve_docs
 
-
-def retrieve_context(query, retriever):
-    """
-    Retrieve the context for a given query, based on the retriever
-
-    Args:
-        query: User input
-        retriever: Retriever object
-
-    Returns:
-        Formatted context matching the user's query
-    """
-
-    docs = retrieve_docs(retriever, query)
-    context = _format_context(docs)
-
-    return context
-
-
 def _format_context(docs: list[Document]) -> str:
     """
     Convert a list of Documents into a single context string.
@@ -54,13 +35,13 @@ class LlmModel(abc.ABC):
             A runnable chain compatible with .invoke({"query": ..., "context": ...}).
         """
         pass
-
+    
     @abc.abstractmethod
     def generate_answer(
             self,
             query: str,
             retriever,
-        ) -> tuple[str, List[str]]:
+        ) -> tuple[str, list[Document]]:
         """
         Generate an answer grounded in the retrieved context.
 
@@ -81,7 +62,6 @@ class MistralModel(LlmModel):
         Args:
             model: model identifier
         """
-
         self.model = model
         self.client = self.build_llm(self.model)
 
@@ -89,22 +69,20 @@ class MistralModel(LlmModel):
         """
         Builds mistral model. Needs the API Key.
         """
-
         print("Setting up remote model access...")
         load_dotenv()
         api_key = os.environ["MISTRAL_API_KEY"]
         client = Mistral(api_key=api_key)
-
         return client
 
     def generate_answer(self, query, retriever):
         """
         Generating answer using mistral model.
         """
-
         # Retrieve top documents for the question
-        context = retrieve_context(query, retriever)
-
+        docs = retrieve_docs(retriever, query)
+        context = _format_context(docs)
+    
         prompt = f"""
         Context information is below.
         ---------------------
@@ -133,4 +111,4 @@ class MistralModel(LlmModel):
         )
 
         answer = chat_response.choices[0].message.content
-        return answer, context
+        return answer, docs

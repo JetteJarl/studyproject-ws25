@@ -110,7 +110,13 @@ def _normalize_contexts(contexts: object) -> List[str]:
         clean.append(text.strip())
     return clean
 
-def run_pipeline_on_querys(df: pd.DataFrame, chain: LlmModel, llm: str) -> tuple[pd.DataFrame, str, str]:
+def run_pipeline_on_querys(
+    df: pd.DataFrame,
+    chain: LlmModel,
+    llm: str,
+    embedder: str,
+    number_relevant_chunks: int
+) -> tuple[pd.DataFrame, str, str]:
     """
     Run the RAG pipeline for each query in a DataFrame and collect model outputs.
 
@@ -138,6 +144,11 @@ def run_pipeline_on_querys(df: pd.DataFrame, chain: LlmModel, llm: str) -> tuple
             :meth:`llm_model.LlmModel.generate_answer`).
         llm: Identifier/name of the generator model. Passed through to
             :func:`rag_pipeline.load_rag` and returned for logging/reporting.
+        embedder: Identifier/name of the embedding model used by the retriever (e.g.
+            ``"sentence-transformers/all-mpnet-base-v2"``). Passed through to
+            :func:`rag_pipeline.load_rag` and returned for logging/reporting.
+        number_relevant_chunks: Number of retrieved context chunks to fetch per query (top-k).
+            This controls retriever breadth and the amount of context provided to the model.
 
     Returns:
         A tuple ``(out_df, llm, embedder)`` where:
@@ -155,7 +166,7 @@ def run_pipeline_on_querys(df: pd.DataFrame, chain: LlmModel, llm: str) -> tuple
     answers: List[str] = []
     contexts_list: List[List[str]] = []
 
-    retriever, chain, llm, embedder = load_rag(chain, llm)
+    retriever, chain, llm, embedder = load_rag(chain, llm, embedder, number_relevant_chunks)
 
     for query in df["user_input"].tolist():
         result = chain.generate_answer(query, retriever)

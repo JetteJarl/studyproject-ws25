@@ -85,7 +85,10 @@ def main():
     df = load_fever_split(sample_size=10)
     llm = "open-mixtral-8x7b"
     chain = MistralModel(llm)
-    df, llm, embedder = run_pipeline_on_querys(df, chain, llm)
+    embedder = "sentence-transformers/all-mpnet-base-v2"
+    number_relevant_chunks = 3
+
+    df, llm, embedder = run_pipeline_on_querys(df, chain, llm, embedder, number_relevant_chunks)
     per_row = evaluate_with_ragas(df, llm, embedder)
 
     # Save detailed results

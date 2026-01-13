@@ -49,18 +49,18 @@ def load_vectorstore(
         return database
     return None
 
-def get_retriever(vectorstore: VectorStore, k: int = 3) -> VectorStoreRetriever:
+def get_retriever(vectorstore: VectorStore, number_relevant_chunks: int) -> VectorStoreRetriever:
     """
     Create a retriever from the vector store.
 
     Args:
         vectorstore: The underlying vector database.
-        k: Number of top documents to retrieve.
+        number_relevant_chunks: Number of top documents to retrieve.
 
     Returns:
         A retriever configured to return top-k matches.
     """
-    retriever = vectorstore.as_retriever(search_kwargs={"k": k})
+    retriever = vectorstore.as_retriever(search_kwargs={"k": number_relevant_chunks})
     return retriever
 
 # there are many more vectorstores provided by langchain
