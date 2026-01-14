@@ -1,3 +1,9 @@
+"""Streamlit RAG UI.
+
+Lightweight Streamlit UI that wires an embedding model, a local
+vectorstore retriever and a configurable LLM. 
+"""
+
 import streamlit as st
 from langchain_core.vectorstores import VectorStoreRetriever
 
@@ -5,8 +11,30 @@ from document_loader import load_web_page
 from document_splitter import split_documents
 from embed_model import get_embeddings_model
 from vector_database import save_vectorstore, load_vectorstore, get_retriever
-from llm_model import MistralModel, LlmModel
+from llm_model import MistralModel, LangchainOllamaModel, LlmModel
 from user_interface import init_page
+
+from langchain_ollama.chat_models import ChatOllama
+import requests
+import json
+
+OLLAMA_URL = "http://localhost:11434"
+
+
+def extract_model_name(tag: str) -> str:
+    # take everything before the first ':' (or the whole string if no colon)
+    return tag.split(":", 1)[0]
+
+def get_ollama_models() -> list:
+    thelist = requests.get(OLLAMA_URL+"/api/tags")
+    jsondata = thelist.json()
+    result = list()
+
+    for model in jsondata["models"]:
+        result.append(model["model"])
+
+    return result
+
 
 def load_system(
     model_name: str,
@@ -44,21 +72,28 @@ def load_system(
     return retriever, llm
 
 
-def main() -> None:
-    """
-    Entry point for the Streamlit RAG prototype.
 
-    Steps:
-    - Read URL input.
-    - Initialize embeddings and vectorstore (load existing or build from URL).
-    - Build retriever and LLM chain.
-    - Accept a user query and generate an answer using retrieved context.
+def main() -> None:
+    """Streamlit app entry point.
+
+    Sets up session-state defaults, renders the About/Settings/Input UI,
+    and manages applying staged settings and storing runtime objects
+    (``retriever``, ``llm``) in ``st.session_state``.
     """
     # Setting variables
     all_llms = {
         "open-mixtral-8x7b" : MistralModel,
         "mistral-small-2506": MistralModel
     }
+    
+    # Checking for local models
+    model_list = get_ollama_models()
+    print(model_list)
+
+    for m in model_list:
+        model_name = extract_model_name(m)
+        all_llms.update({model_name: LangchainOllamaModel})
+
 
     default_llm = list(all_llms.keys())[0]
     default_embedder = "sentence-transformers/all-mpnet-base-v2"
