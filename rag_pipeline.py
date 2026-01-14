@@ -8,44 +8,41 @@ from vector_database import save_vectorstore, load_vectorstore, get_retriever
 from llm_model import MistralModel, LlmModel
 from user_interface import init_page
 
-def load_rag(
-    chain: LlmModel,
-    llm: str,
+def load_system(
+    model_name: str,
+    all_llms: dict,
     embedder: str,
-    number_relevant_chunks: int
-) -> tuple[VectorStoreRetriever, LlmModel, str, str]:
-    # TODO: Rework this method
+    n_chunks: int
+) -> tuple[VectorStoreRetriever, LlmModel]:
     """
-    Run the RAG pipeline for a single query and return the model answer plus the
-    retrieved contexts in rank order.
+    Load the vectorstore, retriever, and llm based on the selected configuration
+
+    Args:
+        model_name: name of the selected llm,
+        all_llms: dict with all available modes and their associated client,
+        embedder: embedding model
+        n_chunks: number of relevant chunks
 
     Returns:
-        A tuple (answer, contexts) where:
-          - answer is the generated answer as a string.
-          - contexts is a list of retrieved Document objects in ranking order.
-            For Ragas, convert these to a list of strings (e.g., [d.page_content for d in contexts]).
-          - llm is the name of the loaded Ollama model, e.g., "llama3".
-          - embedder is the name of the loaded embedding model, e.g., "sentence-transformers/all-mpnet-base-v2".
+        Tuple(retriever, llm)
     """
-    # Input: URL to scrape/load and index into the vector store if not present
-    url = "https://en.wikipedia.org/wiki/COVID-19"
+    # Load LLM
+    client = all_llms[model_name]     # select corresponding client
+    llm = client(model_name)      # load llm
 
-    # Initialize the embedding model name used for both indexing and retrieval
     embeddings_model, embedder  = get_embeddings_model(embedder)
     datastore_name = "chroma_db"
 
     # Attempt to load an existing vectorstore; if not found, ingest from the URL
     vectorstore = load_vectorstore(embeddings_model, datastore_name)
     if vectorstore is None:
-        # Load and split documents before storing
-        docs = load_web_page(url)
-        # Chunking helps the retrieval quality and token efficiency
-        chunks = split_documents(docs, chunk_size=1000, chunk_overlap=200)
-        vectorstore = save_vectorstore(chunks, embeddings_model, datastore_name)
+        st.error("There is no data store available. Look at the .README for more insights or contact the GitHub contributors.")
 
     # Configure retriever (k controls number of top documents to fetch)
-    retriever = get_retriever(vectorstore, number_relevant_chunks)
-    return retriever, chain, llm, embedder
+    retriever = get_retriever(vectorstore, n_chunks)
+
+    return retriever, llm
+
 
 def main() -> None:
     """
@@ -63,14 +60,70 @@ def main() -> None:
         "mistral-small-2506": MistralModel
     }
 
-    selected_llm = "open-mixtral-8x7b"
+    default_llm = list(all_llms.keys())[0]
     default_embedder = "sentence-transformers/all-mpnet-base-v2"
+
+    # Initialize session state defaults on first load (these are the currently applied settings)
+    if "selected_llm" not in st.session_state:
+        st.session_state.selected_llm = default_llm
+    if "embedder" not in st.session_state:
+        st.session_state.embedder = default_embedder
+    if "number_relevant_chunks" not in st.session_state:
+        st.session_state.number_relevant_chunks = 3
+    if "retriever" not in st.session_state or "llm" not in st.session_state:
+        # attempt to load initial system (will show error if no vectorstore)
+        retr, lm = load_system(st.session_state.selected_llm, all_llms, st.session_state.embedder, st.session_state.number_relevant_chunks)
+        st.session_state.retriever = retr
+        st.session_state.llm = lm
+
+    # Initialize temporary widget state (these reflect widget inputs before the user "applies" them)
+    # Callback to mark that the user modified a temporary widget value.
+    def _mark_tmp_modified():
+        st.session_state.tmp_user_modified = True
+
+    # Ensure the flag exists in session_state
+    st.session_state.setdefault("tmp_user_modified", False)
+
+    # If the user hasn't modified any tmp widgets in this session, keep the
+    # tmp values in sync with the applied (selected_) values. This ensures the
+    # number input displays the applied default (3) unless the user changes it.
+    if not st.session_state.get("tmp_user_modified", False):
+        st.session_state.selected_llm_tmp = st.session_state.selected_llm
+        # coerce to int and fall back to applied value on error
+        try:
+            st.session_state.number_relevant_chunks_tmp = int(st.session_state.number_relevant_chunks)
+        except Exception:
+            st.session_state.number_relevant_chunks_tmp = st.session_state.number_relevant_chunks
+        st.session_state.embedder_tmp = st.session_state.embedder
+
+    # If settings were just applied in the previous run, keep the temporary
+    # widget state in sync with the applied values before any widgets are
+    # instantiated. We set `just_applied` in the Apply button handler and
+    # perform the actual tmp-key assignments here (early) to avoid the
+    # StreamlitAPIException that occurs when modifying a widget-bound key
+    # after the widget has already been created.
+    if st.session_state.get("just_applied", False):
+        st.session_state.selected_llm_tmp = st.session_state.selected_llm
+        st.session_state.number_relevant_chunks_tmp = st.session_state.number_relevant_chunks
+        st.session_state.embedder_tmp = st.session_state.embedder
+        st.session_state.just_applied = False
 
     # Initialize the Streamlit UI
     init_page()
 
+    # DEBUG: show relevant session_state values to troubleshoot widget defaults
+    # Remove this block after debugging
+    # try:
+    #     st.write({
+    #         "number_relevant_chunks": st.session_state.get("number_relevant_chunks"),
+    #         "number_relevant_chunks_tmp": st.session_state.get("number_relevant_chunks_tmp"),
+    #         "selected_llm": st.session_state.get("selected_llm"),
+    #         "selected_llm_tmp": st.session_state.get("selected_llm_tmp"),
+    #     })
+    # except Exception:
+    #     pass
+
     # On first app load: show only title + start button, nothing else.
-    # After clicking "Start": init_page() should set st.session_state["rag_initialized"] = True.
     if not st.session_state.get("rag_initialized", False):
         st.stop()
     
@@ -81,51 +134,93 @@ def main() -> None:
 
         st.write("Our site uses a combination of AI and a manually maintained maintained database to not only be able to respond fast but also acurately to any given statement. The database consists of a combination of scientific publications, reports, and news articles from trusted sources.")
 
-        st.write(f"The system can be configured to use different llms or embeeding models. Currently it is using the {selected_llm} as llm and the {default_embedder} as embedding model.")
-
     # Settings Menu
     with st.expander("Settings"):
-        # TODO: Add embedding selection
-        # Reduce the width of the number input field to make it more compact
-        small_column, larger_column = st.columns([1, 5])  # 10% of container width /
-
+        small_column1, larger_column = st.columns([1, 5])
         
-        with small_column:
-            # UI control to choose the number of relevant chunks (top-k)
+        with small_column1:
+            # bind to temporary session_state keys so changes are not applied immediately
             number_relevant_chunks = st.number_input(
                 label="Number of relevant chunks",
                 min_value=1,
                 max_value=20,
-                value=3,
                 step=1,
-                help="How many context chunks the retriever should return for generating an answer. (Default: 3)"
+                help="How many context chunks the retriever should return for generating an answer. (Default: 3)",
+                key="number_relevant_chunks_tmp",
+                on_change=_mark_tmp_modified
             )
 
         with larger_column:
-            llm_options = all_llms.keys()
-            selected_llm = st.selectbox("Select an LLM to be used:", llm_options, index=0)
+            llm_options = list(all_llms.keys())
+            # Ensure tmp value is valid; if not, fall back to the first option
+            if st.session_state.selected_llm_tmp not in llm_options:
+                st.session_state.selected_llm_tmp = llm_options[0]
+            # Use key-only mode so Streamlit reads/writes the value from session_state
+            # Avoid passing `index=` together with `key=` which causes widget/session conflicts
+            st.selectbox(
+                "Select an LLM to be used:",
+                llm_options,
+                key="selected_llm_tmp",
+                on_change=_mark_tmp_modified
+            )
+
+        _, button_column = st.columns([9,1])
+        with button_column:
+            # Determine whether any temporary settings differ from the applied ones
+            settings_changed = (
+                st.session_state.selected_llm_tmp != st.session_state.selected_llm
+                or st.session_state.number_relevant_chunks_tmp != st.session_state.number_relevant_chunks
+                or st.session_state.embedder_tmp != st.session_state.embedder
+            )
+
+            # The Apply button is disabled (greyed out) when there's no change
+            if st.button("Apply Changes", disabled=not settings_changed):
+                # Copy tmp -> applied
+                st.session_state.selected_llm = st.session_state.selected_llm_tmp
+                st.session_state.number_relevant_chunks = st.session_state.number_relevant_chunks_tmp
+                st.session_state.embedder = st.session_state.embedder_tmp
+
+                # Mark that we just applied settings; on the next rerun we will
+                # copy applied -> tmp before widgets are created (see above).
+                st.session_state.just_applied = True
+                # Reset the tmp_user_modified flag so tmp values will be synced
+                # from the applied values on the next run (clean state).
+                st.session_state.tmp_user_modified = False
+
+                # Reload system with the chosen LLM and settings, store back into session_state
+                retriever, llm = load_system(
+                    st.session_state.selected_llm,
+                    all_llms,
+                    st.session_state.embedder,
+                    st.session_state.number_relevant_chunks
+                )
+                st.session_state.retriever = retriever
+                st.session_state.llm = llm
+                # No explicit rerun needed: Streamlit automatically reruns the script
+                # after a widget interaction (the Apply button), so the updated
+                # session_state will be picked up on the next run.
 
 
-    # Instantiate LLM
-    # TODO: Check if selected llm is updated in reselection (are texts updated, maybe add a message) updates
-    client = all_llms[selected_llm]     # select corresponding client
-    llm = client(selected_llm)      # load llm
+    # Display which LLM is currently applied and the number of relevant
+    # chunks on a single line so they appear closer together.
+    selected_llm = st.session_state.get("selected_llm")
+    n_chunks = st.session_state.get("number_relevant_chunks")
+    st.markdown(f"**Model:** {selected_llm} &nbsp;&nbsp; **Chunks:** {n_chunks}")
 
+    st.markdown("**Input:**")
     query = st.text_area(
-        label="Say something:",
+        label="Say something...",
         value="Climate change is not real. It is made up by communists to destroy the world economy.",
         help="Copy&paste a comment, a post, an entire (fake) news article etc. from social media or somewhere else."
     )
 
-    retriever = load_rag(client, llm, default_embedder, number_relevant_chunks)[0]  # access retriever
-
-    # Generate and display an answer and the retrieved context
-    system_help_string = f"Your input is being processed by a RAG system. We are using a manually compiled database of sources to check claims being made in your input.\n Model: {llm}"
     if st.button("Generate Answer", 
-                 help=system_help_string):
+                 help="Sends your input to an llm to generate a counterstatement"):
         if query:
-            # Show loading circle
             with st.spinner("Generating answer..."):
+                # Read retriever/llm from session_state for generating answers
+                retriever = st.session_state.get("retriever")
+                llm = st.session_state.get("llm")
                 answer, context = llm.generate_answer(query, retriever)
                 st.write("Answer:")
                 st.write(answer)
