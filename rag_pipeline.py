@@ -106,37 +106,27 @@ def main() -> None:
     if "number_relevant_chunks" not in st.session_state:
         st.session_state.number_relevant_chunks = 3
     if "retriever" not in st.session_state or "llm" not in st.session_state:
-        # attempt to load initial system (will show error if no vectorstore)
-        retr, lm = load_system(st.session_state.selected_llm, all_llms, st.session_state.embedder, st.session_state.number_relevant_chunks)
+        retr, lm = load_system(st.session_state.selected_llm, all_llms, st.session_state.embedder, st.session_state.number_relevant_chunks)     # load system
         st.session_state.retriever = retr
         st.session_state.llm = lm
 
-    # Initialize temporary widget state (these reflect widget inputs before the user "applies" them)
-    # Callback to mark that the user modified a temporary widget value.
+    # Flag for changes in settings
     def _mark_tmp_modified():
         st.session_state.tmp_user_modified = True
 
     # Ensure the flag exists in session_state
     st.session_state.setdefault("tmp_user_modified", False)
 
-    # If the user hasn't modified any tmp widgets in this session, keep the
-    # tmp values in sync with the applied (selected_) values. This ensures the
-    # number input displays the applied default (3) unless the user changes it.
+    # Sync tmp session state with session state
     if not st.session_state.get("tmp_user_modified", False):
         st.session_state.selected_llm_tmp = st.session_state.selected_llm
-        # coerce to int and fall back to applied value on error
         try:
             st.session_state.number_relevant_chunks_tmp = int(st.session_state.number_relevant_chunks)
         except Exception:
             st.session_state.number_relevant_chunks_tmp = st.session_state.number_relevant_chunks
         st.session_state.embedder_tmp = st.session_state.embedder
 
-    # If settings were just applied in the previous run, keep the temporary
-    # widget state in sync with the applied values before any widgets are
-    # instantiated. We set `just_applied` in the Apply button handler and
-    # perform the actual tmp-key assignments here (early) to avoid the
-    # StreamlitAPIException that occurs when modifying a widget-bound key
-    # after the widget has already been created.
+    # Keep temp state if changes were made
     if st.session_state.get("just_applied", False):
         st.session_state.selected_llm_tmp = st.session_state.selected_llm
         st.session_state.number_relevant_chunks_tmp = st.session_state.number_relevant_chunks
@@ -191,7 +181,6 @@ def main() -> None:
             if st.session_state.selected_llm_tmp not in llm_options:
                 st.session_state.selected_llm_tmp = llm_options[0]
             # Use key-only mode so Streamlit reads/writes the value from session_state
-            # Avoid passing `index=` together with `key=` which causes widget/session conflicts
             st.selectbox(
                 "Select an LLM to be used:",
                 llm_options,
@@ -201,25 +190,22 @@ def main() -> None:
 
         _, button_column = st.columns([9,1])
         with button_column:
-            # Determine whether any temporary settings differ from the applied ones
+            # Check for changes
             settings_changed = (
                 st.session_state.selected_llm_tmp != st.session_state.selected_llm
                 or st.session_state.number_relevant_chunks_tmp != st.session_state.number_relevant_chunks
                 or st.session_state.embedder_tmp != st.session_state.embedder
             )
 
-            # The Apply button is disabled (greyed out) when there's no change
             if st.button("Apply Changes", disabled=not settings_changed):
                 # Copy tmp -> applied
                 st.session_state.selected_llm = st.session_state.selected_llm_tmp
                 st.session_state.number_relevant_chunks = st.session_state.number_relevant_chunks_tmp
                 st.session_state.embedder = st.session_state.embedder_tmp
 
-                # Mark that we just applied settings; on the next rerun we will
-                # copy applied -> tmp before widgets are created (see above).
+                # Mark that we just applied settings
                 st.session_state.just_applied = True
                 # Reset the tmp_user_modified flag so tmp values will be synced
-                # from the applied values on the next run (clean state).
                 st.session_state.tmp_user_modified = False
 
                 # Reload system with the chosen LLM and settings, store back into session_state
@@ -231,13 +217,9 @@ def main() -> None:
                 )
                 st.session_state.retriever = retriever
                 st.session_state.llm = llm
-                # No explicit rerun needed: Streamlit automatically reruns the script
-                # after a widget interaction (the Apply button), so the updated
-                # session_state will be picked up on the next run.
 
 
-    # Display which LLM is currently applied and the number of relevant
-    # chunks on a single line so they appear closer together.
+    # Display llm and no of chunks
     selected_llm = st.session_state.get("selected_llm")
     n_chunks = st.session_state.get("number_relevant_chunks")
     st.markdown(f"**Model:** {selected_llm} &nbsp;&nbsp; **Chunks:** {n_chunks}")
