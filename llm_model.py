@@ -4,12 +4,7 @@ from typing import List
 
 from langchain_core.documents import Document
 from langchain_core.runnables import Runnable
-from langchain_ollama import ChatOllama
-from langchain_core.prompts.chat import (
-    HumanMessagePromptTemplate,
-    SystemMessagePromptTemplate,
-    ChatPromptTemplate
-)
+
 from mistralai import Mistral
 from dotenv import load_dotenv
 
@@ -17,16 +12,51 @@ from document_retriever import retrieve_docs
 
 # SYSTEM_PROMPT = "You are an expert, checking facts in statements made in public. If you are unsure do not make up information, instead say that you are missing information."
 
-SYSTEM_PROMPT = """You are an expert for checking facts in statements made in public. Your goal is to convince
-people without criticizing them. Keep the tone respectful and be concise.
-Here are things that make a counter statement good and helpful:
+# SYSTEM_PROMPT = """You are an expert for checking facts in statements made in public. Your goal is to convince
+# people without criticizing them. Keep the tone respectful and be concise.
+# Here are things that make a counter statement good and helpful:
+# 1. Include sources for your claims, you can for example name the entity that published data
+# that you used
+# 2. Use easy to understand language and formulations.
+# 3. Directly address the false claims that you argue against.
+# 4. Provide context.
+# When you are missing information about the statement being made clearly state that you
+# are missing the necessary context information to check the statement."""
+
+SYSTEM_PROMPT = """You are an expert at communicating with people. Your goal is to convince people who believe false statements made in public of 
+facts and evidence with a scientific basis. To do so you need to generate a short and concise counterstatement that can convince people.
+
+When adressing people and confronting them with new information use your knowledge on how to communicate with people. 
+Additionally use these guidelines on how to formulate counterstatements:
 1. Include sources for your claims, you can for example name the entity that published data
 that you used
 2. Use easy to understand language and formulations.
 3. Directly address the false claims that you argue against.
-4. Provide context.
-When you are missing information about the statement being made clearly state that you
-are missing the necessary context information to check the statement."""
+4. Provide context to the arguments you use
+
+Any statements you make need to be based on evidence. You may only use the information provided as context together with the user query. 
+If you are missing information to respond to the false statement state so cleary. Do not make up any information for the purpose of responding.
+"""
+
+# SYSTEM_PROMPT = """You are an expert at communicating with people. Your goal is to convince people who believe false statements made in public of 
+# facts and evidence with a scientific basis. To do so you need to generate a counterstatement and a rating on a scale 0-2 where 0 is a statement that is completly true,
+# 1 is a statement that is related to evidence but misinterprets it or takes it out of context, 2 is a statement that has no ties to facts or evidence.
+
+# When adressing people and confronting them with new information use your knowledge on how to communicate with people. 
+# Additionally use these guidelines on how to formulate counterstatements:
+# 1. Include sources for your claims, you can for example name the entity that published data
+# that you used
+# 2. Use easy to understand language and formulations.
+# 3. Directly address the false claims that you argue against.
+# 4. Provide context.
+
+# Any statements you make need to be based on evidence. You may only use the information provided as context together with the user query. 
+# If you are missing information to respond to the false statement state so cleary. Do not make up any information for the purpose of responding.
+
+# Your counterstatement should fit the template:
+# <your generated counter arguments to the statement>
+# Rating: <0/1/2>
+# """
 
 def _format_context(docs: list[Document]) -> str:
     """
@@ -53,7 +83,7 @@ class LlmModel(abc.ABC):
         Returns:
             A runnable chain compatible with .invoke({"query": ..., "context": ...}).
         """
-        pass
+        raise NotImplementedError
     
     @abc.abstractmethod
     def generate_answer(
@@ -71,52 +101,7 @@ class LlmModel(abc.ABC):
         Returns:
             Model answer as a string along with the retrieved context.
         """
-        pass
-
-class LangchainOllamaModel(LlmModel):
-    def __init__(self, model: str):
-        """
-        Creates langchain model class and invokes build_llm.
-
-        Args:
-            model: model identifier
-        """
-
-        self.chain = self.build_llm(model)
-
-
-    def build_llm(self, model):
-        """
-        Returns chain used as model by langchain
-        """
-        llm = ChatOllama(model)
-
-        prompt = ChatPromptTemplate([
-            SystemMessagePromptTemplate.from_template(SYSTEM_PROMPT),
-            HumanMessagePromptTemplate.from_template("Query: {query}\n\nContext:\n{context}"),
-        ])
-
-        chain = prompt | llm
-
-        return chain
-
-
-    def generate_answer(self, query, retriever):
-        """
-        Generate an answer grounded in the retrieved context using the langchain model.
-        """
-        # Retrieve top documents for the question
-        # Retrieve top documents for the question
-        docs = retrieve_docs(retriever, query)
-        context = _format_context(docs)
-
-        print("Generating answer...")
-
-        # The chain returns a message-like object with .content
-        answer = (self.chain.invoke({"query": query, "context": context})).content
-
-        return answer, docs
-
+        raise NotImplementedError
 
 
 
