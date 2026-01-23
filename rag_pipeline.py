@@ -11,29 +11,10 @@ from document_loader import load_web_page
 from document_splitter import split_documents
 from embed_model import get_embeddings_model
 from vector_database import save_vectorstore, load_vectorstore, get_retriever
-from llm_model import MistralModel, LangchainOllamaModel, LlmModel
+from llm_model import MistralModel, LlmModel
 from user_interface import init_page
 
-from langchain_ollama.chat_models import ChatOllama
-import requests
-import json
 
-OLLAMA_URL = "http://localhost:11434"
-
-
-def extract_model_name(tag: str) -> str:
-    # take everything before the first ':' (or the whole string if no colon)
-    return tag.split(":", 1)[0]
-
-def get_ollama_models() -> list:
-    thelist = requests.get(OLLAMA_URL+"/api/tags")
-    jsondata = thelist.json()
-    result = list()
-
-    for model in jsondata["models"]:
-        result.append(model["model"])
-
-    return result
 
 
 def load_system(
@@ -85,14 +66,6 @@ def main() -> None:
         "open-mixtral-8x7b" : MistralModel,
         "mistral-small-2506": MistralModel
     }
-    
-    # Checking for local models
-    model_list = get_ollama_models()
-    print(model_list)
-
-    for m in model_list:
-        model_name = extract_model_name(m)
-        all_llms.update({model_name: LangchainOllamaModel})
 
 
     default_llm = list(all_llms.keys())[0]
@@ -136,28 +109,16 @@ def main() -> None:
     # Initialize the Streamlit UI
     init_page()
 
-    # DEBUG: show relevant session_state values to troubleshoot widget defaults
-    # Remove this block after debugging
-    # try:
-    #     st.write({
-    #         "number_relevant_chunks": st.session_state.get("number_relevant_chunks"),
-    #         "number_relevant_chunks_tmp": st.session_state.get("number_relevant_chunks_tmp"),
-    #         "selected_llm": st.session_state.get("selected_llm"),
-    #         "selected_llm_tmp": st.session_state.get("selected_llm_tmp"),
-    #     })
-    # except Exception:
-    #     pass
-
     # On first app load: show only title + start button, nothing else.
     if not st.session_state.get("rag_initialized", False):
         st.stop()
     
     with st.expander("About", expanded=True):
-        st.write("This system is designed to generate convincing counterstatements to false statements made by users in the internet.\n" \
-        "In recent years it has become increasingly difficult to discern false statements from fact especially in discussions but especially in social media. \n" \
-        "Since our goal should not only be to label false statement as is, this site thrives to generate and present counterstatements that reach poeple")
+        st.write("This system is designed to generate convincing counterstatements to false statements made by users on the internet.\n" \
+        "In recent years it has become increasingly difficult to distinguish false statements from facts especially in discussions on social media. \n" \
+        "Since our goal should not only be to label false statements as is, this site thrives to generate and present counterstatements that convince people.")
 
-        st.write("Our site uses a combination of AI and a manually maintained maintained database to not only be able to respond fast but also acurately to any given statement. The database consists of a combination of scientific publications, reports, and news articles from trusted sources.")
+        st.write("Our site uses a combination of AI and a manually maintained database to not only be able to respond fast but also accurately to any given statement. The database consists of a combination of scientific publications, reports, and news articles from trusted sources.")
 
     # Settings Menu
     with st.expander("Settings"):

@@ -3,7 +3,6 @@ from typing import List
 import pandas as pd
 
 from llm_model import LlmModel
-from rag_pipeline import load_rag
 
 # Build a lightweight reference text. If you can’t extract evidence sentences,
 # at least encode the label in the ground truth to help 'correctness'.
@@ -112,9 +111,10 @@ def _normalize_contexts(contexts: object) -> List[str]:
 
 def run_pipeline_on_querys(
     df: pd.DataFrame,
-    chain: LlmModel,
-    llm: str,
-    embedder: str,
+    llm: LlmModel,
+    llm_name: str,
+    embedding_model: any,
+    retriever: any,
     number_relevant_chunks: int
 ) -> tuple[pd.DataFrame, str, str]:
     """
@@ -166,10 +166,9 @@ def run_pipeline_on_querys(
     answers: List[str] = []
     contexts_list: List[List[str]] = []
 
-    retriever, chain, llm, embedder = load_rag(chain, llm, embedder, number_relevant_chunks)
 
     for query in df["user_input"].tolist():
-        result = chain.generate_answer(query, retriever)
+        result = llm.generate_answer(query, retriever)
         answer, contexts = _unpack_answer_and_contexts(result)
 
         answers.append(answer)
@@ -178,4 +177,4 @@ def run_pipeline_on_querys(
     out = df.copy()
     out["answer"] = answers
     out["contexts"] = contexts_list
-    return out, llm, embedder
+    return out, llm, embedding_model
