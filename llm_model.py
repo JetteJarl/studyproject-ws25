@@ -4,10 +4,59 @@ from typing import List
 
 from langchain_core.documents import Document
 from langchain_core.runnables import Runnable
+
 from mistralai import Mistral
 from dotenv import load_dotenv
 
 from document_retriever import retrieve_docs
+
+# SYSTEM_PROMPT = "You are an expert, checking facts in statements made in public. If you are unsure do not make up information, instead say that you are missing information."
+
+# SYSTEM_PROMPT = """You are an expert for checking facts in statements made in public. Your goal is to convince
+# people without criticizing them. Keep the tone respectful and be concise.
+# Here are things that make a counter statement good and helpful:
+# 1. Include sources for your claims, you can for example name the entity that published data
+# that you used
+# 2. Use easy to understand language and formulations.
+# 3. Directly address the false claims that you argue against.
+# 4. Provide context.
+# When you are missing information about the statement being made clearly state that you
+# are missing the necessary context information to check the statement."""
+
+SYSTEM_PROMPT = """You are an expert at communicating with people. Your goal is to convince people who believe false statements made in public of 
+facts and evidence with a scientific basis. To do so you need to generate a short and concise counterstatement that can convince people.
+
+When adressing people and confronting them with new information use your knowledge on how to communicate with people. 
+Additionally use these guidelines on how to formulate counterstatements:
+1. Include sources for your claims, you can for example name the entity that published data
+that you used
+2. Use easy to understand language and formulations.
+3. Directly address the false claims that you argue against.
+4. Provide context to the arguments you use
+
+Any statements you make need to be based on evidence. You may only use the information provided as context together with the user query. 
+If you are missing information to respond to the false statement state so cleary. Do not make up any information for the purpose of responding.
+"""
+
+# SYSTEM_PROMPT = """You are an expert at communicating with people. Your goal is to convince people who believe false statements made in public of 
+# facts and evidence with a scientific basis. To do so you need to generate a counterstatement and a rating on a scale 0-2 where 0 is a statement that is completly true,
+# 1 is a statement that is related to evidence but misinterprets it or takes it out of context, 2 is a statement that has no ties to facts or evidence.
+
+# When adressing people and confronting them with new information use your knowledge on how to communicate with people. 
+# Additionally use these guidelines on how to formulate counterstatements:
+# 1. Include sources for your claims, you can for example name the entity that published data
+# that you used
+# 2. Use easy to understand language and formulations.
+# 3. Directly address the false claims that you argue against.
+# 4. Provide context.
+
+# Any statements you make need to be based on evidence. You may only use the information provided as context together with the user query. 
+# If you are missing information to respond to the false statement state so cleary. Do not make up any information for the purpose of responding.
+
+# Your counterstatement should fit the template:
+# <your generated counter arguments to the statement>
+# Rating: <0/1/2>
+# """
 
 def _format_context(docs: list[Document]) -> str:
     """
@@ -34,7 +83,7 @@ class LlmModel(abc.ABC):
         Returns:
             A runnable chain compatible with .invoke({"query": ..., "context": ...}).
         """
-        pass
+        raise NotImplementedError
     
     @abc.abstractmethod
     def generate_answer(
@@ -52,7 +101,9 @@ class LlmModel(abc.ABC):
         Returns:
             Model answer as a string along with the retrieved context.
         """
-        pass
+        raise NotImplementedError
+
+
 
 class MistralModel(LlmModel):
     def __init__(self, model: str):
@@ -96,7 +147,7 @@ class MistralModel(LlmModel):
         messages = [
             {
                 "role":"system",
-                "content": "You are an expert, checking facts in statements made in public. If you are unsure do not make up information, instead say that you are missing information."
+                "content": SYSTEM_PROMPT
             },
             {
                 "role": "user",

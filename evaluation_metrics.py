@@ -31,6 +31,10 @@ from evaluation_wrappers import MistralRagasLLM, RagasHuggingFaceWrapper
 from evaluation_dataset import load_fever_split, run_pipeline_on_querys
 from llm_model import MistralModel
 
+from vector_database import save_vectorstore, load_vectorstore, get_retriever
+from embed_model import get_embeddings_model
+
+
 def evaluate_with_ragas(df: pd.DataFrame, llm: str, embedder: str) -> pd.DataFrame:
     """
     Run Ragas metrics on the model outputs using the specified LLM and embedder backends.
@@ -83,13 +87,29 @@ def main():
       3) Evaluate outputs with Ragas and save results.
     """
     df = load_fever_split(sample_size=10)
-    llm = "open-mixtral-8x7b"
-    chain = MistralModel(llm)
+    llm_name = "open-mixtral-8x7b"
+    llm = MistralModel(llm_name)
     embedder = "sentence-transformers/all-mpnet-base-v2"
+    embedding_model, embedder  = get_embeddings_model(embedder)
+
+
     number_relevant_chunks = 3
 
-    df, llm, embedder = run_pipeline_on_querys(df, chain, llm, embedder, number_relevant_chunks)
-    per_row = evaluate_with_ragas(df, llm, embedder)
+    # Attempt to load an existing vectorstore; if not found, ingest from the URL
+    vectorstore = load_vectorstore(embedding_model, "chroma_db")
+    if vectorstore is None:
+        print("There is no data store available. Look at the .README for more insights or contact the GitHub contributors.")
+
+    # Configure retriever (k controls number of top documents to fetch)
+    retriever = get_retriever(vectorstore, number_relevant_chunks)
+
+
+    df, llm, embedding_model = run_pipeline_on_querys(
+        df, llm, llm_name, embedding_model, retriever, number_relevant_chunks
+    )
+    # evaluate_with_ragas expects model identifiers (strings), not instantiated
+    # objects. Pass the original llm_name and embedder identifier.
+    per_row = evaluate_with_ragas(df, llm_name, embedder)
 
     # Save detailed results
     Path("eval").mkdir(parents=True, exist_ok=True)
