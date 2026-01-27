@@ -14,6 +14,8 @@ from vector_database import save_vectorstore, load_vectorstore, get_retriever
 from llm_model import MistralModel, LlmModel
 from user_interface import init_page
 
+from io import StringIO
+
 
 
 
@@ -185,31 +187,71 @@ def main() -> None:
     n_chunks = st.session_state.get("number_relevant_chunks")
     st.markdown(f"**Model:** {selected_llm} &nbsp;&nbsp; **Chunks:** {n_chunks}")
 
+    # Handle user input
     st.markdown("**Input:**")
-    query = st.text_area(
-        label="Say something...",
-        value="Climate change is not real. It is made up by communists to destroy the world economy.",
-        help="Copy&paste a comment, a post, an entire (fake) news article etc. from social media or somewhere else."
-    )
 
-    if st.button("Generate Answer", 
+    text_input, file_input = st.columns([1, 1])
+
+    with text_input:
+        query = st.text_area(
+            label="Say something...",
+            value="Climate change is not real. It is made up by communists to destroy the world economy.",
+            help="Copy&paste a comment, a post, an entire (fake) news article etc. from social media or somewhere else."
+        )
+
+
+    with file_input:
+        file = st.file_uploader("Insert a file (html/pdf)", type=["pdf","html"])
+    
+
+    # Trigger LLM processing of input
+    left_button, right_button = st.columns([1, 1])
+
+    with left_button:
+        if st.button("Check Text Input", 
                  help="Sends your input to an llm to generate a counterstatement"):
-        if query:
-            with st.spinner("Generating answer..."):
-                # Read retriever/llm from session_state for generating answers
-                retriever = st.session_state.get("retriever")
-                llm = st.session_state.get("llm")
-                answer, context = llm.generate_answer(query, retriever)
-                st.write("Answer:")
-                st.write(answer)
-                with st.expander("Show Retrieved Context from Local Vector Database"):
-                    for i, doc in enumerate(context, 1):
-                        st.markdown(f"**Relevant Chunk {i}:**")
-                        st.markdown(doc.page_content)
-                        st.markdown(f"*Source:* {doc.metadata['source']}")
-                        st.markdown("---")
-        else:
-            st.warning("Please enter some text.")
+            if query:
+                with st.spinner("Generating answer..."):
+                    # Read retriever/llm from session_state for generating answers
+                    retriever = st.session_state.get("retriever")
+                    llm = st.session_state.get("llm")
+                    answer, context = llm.generate_answer(query, retriever)
+                    st.write("Answer:")
+                    st.write(answer)
+                    with st.expander("Show Retrieved Context from Local Vector Database"):
+                        for i, doc in enumerate(context, 1):
+                            st.markdown(f"**Relevant Chunk {i}:**")
+                            st.markdown(doc.page_content)
+                            st.markdown(f"*Source:* {doc.metadata['source']}")
+                            st.markdown("---")
+            else:
+                st.warning("Please enter some text.")
+
+    with right_button:
+        if st.button("Check File Input", 
+                 help="Sends your input to an llm to generate a counterstatement"):
+            
+
+            if file:
+                stringio = StringIO(file.getvalue().decode("utf-8"))
+                file_as_string = stringio.read()
+
+                with st.spinner("Generating answer..."):
+                    # Read retriever/llm from session_state for generating answers
+                    retriever = st.session_state.get("retriever")
+                    llm = st.session_state.get("llm")
+                    answer, context = llm.generate_answer(file_as_string, retriever)
+                    st.write("Answer:")
+                    st.write(answer)
+                    with st.expander("Show Retrieved Context from Local Vector Database"):
+                        for i, doc in enumerate(context, 1):
+                            st.markdown(f"**Relevant Chunk {i}:**")
+                            st.markdown(doc.page_content)
+                            st.markdown(f"*Source:* {doc.metadata['source']}")
+                            st.markdown("---")
+            else:
+                st.warning("Please enter some text.")
+
 
 if __name__ == "__main__":
     main()
