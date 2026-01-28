@@ -185,58 +185,59 @@ def main() -> None:
     # Display llm and no of chunks
     selected_llm = st.session_state.get("selected_llm")
     n_chunks = st.session_state.get("number_relevant_chunks")
+    st.subheader("System Configuration:")
     st.markdown(f"**Model:** {selected_llm} &nbsp;&nbsp; **Chunks:** {n_chunks}")
 
     # Handle user input
-    st.markdown("**Input:**")
+    st.header("Input:")
+    
+    input_mode = st.radio(
+        "How would you like to provide the content?",
+        ["Text / Social Media Post", "Article (File Upload)"]
+    )   
 
-    text_input, file_input = st.columns([1, 1])
+    st.subheader("📝 Option 1: Analyze a statement or post")
 
-    with text_input:
-        query = st.text_area(
-            label="Say something...",
-            value="Climate change is not real. It is made up by communists to destroy the world economy.",
-            help="Copy&paste a comment, a post, an entire (fake) news article etc. from social media or somewhere else."
-        )
+    text_input = st.text_area(
+        "Paste a statement you want to fact-check",
+        value="Climate change is not real. It is made up by communists to destroy the world economy.",
+        help="Copy&paste a comment, a post, an entire (fake) news article etc. from social media or somewhere else.",
+        disabled=(input_mode != "Text / Social Media Post")
+    )
 
+    st.subheader("📄 Option 2: Analyze an article")
 
-    with file_input:
-        file = st.file_uploader("Insert a file (html/pdf)", type=["pdf","html"])
+    uploaded_file = st.file_uploader(
+        "Upload an article (PDF/HTML)", 
+        type=["pdf","html"],
+        disabled=(input_mode != "Article (File Upload)")
+    )
     
 
     # Trigger LLM processing of input
-    left_button, right_button = st.columns([1, 1])
+    if st.button("Generate Counterstatement", 
+                help="Sends your input to an llm to generate a counterstatement"):
+        
+        if text_input and input_mode == "Text / Social Media Post":
+            with st.spinner("Parsing text and generating answer..."):
+                # Read retriever/llm from session_state for generating answers
+                retriever = st.session_state.get("retriever")
+                llm = st.session_state.get("llm")
+                answer, context = llm.generate_answer(query, retriever)
+                st.write("Answer:")
+                st.write(answer)
+                with st.expander("Show Retrieved Context from Local Vector Database"):
+                    for i, doc in enumerate(context, 1):
+                        st.markdown(f"**Relevant Chunk {i}:**")
+                        st.markdown(doc.page_content)
+                        st.markdown(f"*Source:* {doc.metadata['source']}")
+                        st.markdown("---")
 
-    with left_button:
-        if st.button("Check Text Input", 
-                 help="Sends your input to an llm to generate a counterstatement"):
-            if query:
-                with st.spinner("Generating answer..."):
-                    # Read retriever/llm from session_state for generating answers
-                    retriever = st.session_state.get("retriever")
-                    llm = st.session_state.get("llm")
-                    answer, context = llm.generate_answer(query, retriever)
-                    st.write("Answer:")
-                    st.write(answer)
-                    with st.expander("Show Retrieved Context from Local Vector Database"):
-                        for i, doc in enumerate(context, 1):
-                            st.markdown(f"**Relevant Chunk {i}:**")
-                            st.markdown(doc.page_content)
-                            st.markdown(f"*Source:* {doc.metadata['source']}")
-                            st.markdown("---")
-            else:
-                st.warning("Please enter some text.")
-
-    with right_button:
-        if st.button("Check File Input", 
-                 help="Sends your input to an llm to generate a counterstatement"):
-            
-
-            if file:
+        if uploaded_file and input_mode == "Article (File Upload)":
                 stringio = StringIO(file.getvalue().decode("utf-8"))
                 file_as_string = stringio.read()
 
-                with st.spinner("Generating answer..."):
+                with st.spinner("Parsing file and generating answer..."):
                     # Read retriever/llm from session_state for generating answers
                     retriever = st.session_state.get("retriever")
                     llm = st.session_state.get("llm")
@@ -249,8 +250,10 @@ def main() -> None:
                             st.markdown(doc.page_content)
                             st.markdown(f"*Source:* {doc.metadata['source']}")
                             st.markdown("---")
-            else:
-                st.warning("Please enter some text.")
+
+        else:
+            st.warning("Please enter some text or Upload a file.")
+
 
 
 if __name__ == "__main__":
