@@ -66,7 +66,8 @@ def main() -> None:
     # Setting variables
     all_llms = {
         "open-mixtral-8x7b" : MistralModel,
-        "mistral-small-2506": MistralModel
+        "mistral-small-2506": MistralModel,
+        "mistral-large-2512": MistralModel
     }
 
 
@@ -234,7 +235,7 @@ def main() -> None:
                         st.markdown("---")
 
         if uploaded_file and input_mode == "Article (File Upload)":
-                stringio = StringIO(file.getvalue().decode("utf-8"))
+                stringio = StringIO(uploaded_file.getvalue().decode("utf-8"))
                 file_as_string = stringio.read()
 
                 with st.spinner("Parsing file and generating answer..."):
