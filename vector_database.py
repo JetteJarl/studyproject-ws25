@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Dict
 from langchain_chroma import Chroma
 from langchain_core.documents import Document
 from langchain_core.vectorstores import VectorStore, VectorStoreRetriever
@@ -107,3 +107,94 @@ def get_retriever(vectorstore: VectorStore, number_relevant_chunks: int) -> Vect
 
 # there are many more vectorstores provided by langchain
 # like e.g. FAISS, Qdrant, etc.
+
+
+def list_current_database(vectorstore: Optional[VectorStore]) -> List[Dict[str, str]]:
+    """
+    Return a list of dicts describing the current database contents.
+
+    The returned list contains dicts with keys: 'title', 'source'.
+
+    This function performs only data access / parsing and does not depend on
+    Streamlit or any UI code. It is intentionally defensive and will return
+    an empty list if the store is missing or cannot be parsed.
+
+    Args:
+        vectorstore: The loaded VectorStore (or None).
+
+    Returns:
+        A list of dictionaries with keys 'title','source'.
+    """
+    # Defensive checks
+    if vectorstore is None:
+        return []
+
+    # Try to obtain a serializable snapshot of stored documents.
+    data = None
+    try:
+        if hasattr(vectorstore, "get"):
+            data = vectorstore.get()
+        elif hasattr(vectorstore, "_collection") and hasattr(vectorstore._collection, "get"):
+            data = vectorstore._collection.get()
+        else:
+            # last resort: try introspecting common attributes
+            for candidate in ("client", "collection", "_client", "_store"):
+                obj = getattr(vectorstore, candidate, None)
+                if obj is not None and hasattr(obj, "get"):
+                    data = obj.get()
+                    break
+    except Exception:
+        data = None
+
+    rows: List[Dict[str, str]] = []
+    try:
+        # Chroma/LangChain shape: dict with 'metadatas' and 'documents'
+        if isinstance(data, dict):
+            metadatas = data.get("metadatas") or data.get("metadata") or []
+            documents = data.get("documents") or []
+            # If metadatas present, prefer them
+            if metadatas:
+                for meta in metadatas:
+                    title = meta.get("title") or meta.get("name") or ""
+                    source = meta.get("source") or meta.get("url") or meta.get("link") or ""
+                    rows.append({"title": title, "source": source})
+            elif documents:
+                # documents may be list of strings or Document objects
+                for d in documents:
+                    if isinstance(d, str):
+                        rows.append({"type": "", "title": "", "source": d[:200]})
+                    else:
+                        meta = getattr(d, "metadata", {}) or {}
+                        title = meta.get("title") or ""
+                        source = meta.get("source") or ""
+                        rows.append({"title": title, "source": source})
+        elif isinstance(data, list):
+            for item in data:
+                if isinstance(item, dict):
+                    title = item.get("title") or ""
+                    source = item.get("source") or item.get("url") or ""
+                    rows.append({"title": title, "source": source})
+                else:
+                    meta = getattr(item, "metadata", {}) or {}
+                    rows.append({"title": meta.get("title", ""), "source": meta.get("source", "")})
+        else:
+            # Try to iterate over a fallback attribute that may hold Documents
+            potential = getattr(vectorstore, "documents", None) or getattr(vectorstore, "_documents", None)
+            if potential:
+                for d in potential:
+                    meta = getattr(d, "metadata", {}) or {}
+                    rows.append({"title": meta.get("title", ""), "source": meta.get("source", "")})
+    except Exception:
+        rows = []
+
+    # Deduplicate rows while preserving order. 
+    deduped: List[Dict[str, str]] = []
+    seen = set()
+    for r in rows:
+        key = (r.get("title", ""), r.get("source", ""))
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(r)
+
+    return deduped
