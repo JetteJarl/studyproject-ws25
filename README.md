@@ -43,3 +43,13 @@ In the current database we used a chunk size of 1000 and overlap of 200. The enc
 If the VRAM of your GPU is not sufficient (e.g. 2 GB), Llama 3 will not work because it is 4.7 GB big.<br>
 Instead, you could try a smaller model, e.g. **TinyLlama**.<br>
 Run this ``ollama pull tinyllama`` and you should be good to go!
+
+
+## Adding Data
+To add data to the data base you can use the script *adding_data.py* using the command
+``python3 adding_data.py data.csv --persist-dir chroma_db``
+where ``data.csv`` contains the data that you want to add and chroma_db is the existing database.
+
+If no vector database exists the script creates a new one. 
+
+In the current database we used a chunk size of 1000 and overlap of 200. The encoder model we used is sentence-transformers/all-mpnet-base-v2 from Huggingface.

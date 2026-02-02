@@ -6,6 +6,8 @@ from langchain_core.vectorstores import VectorStore, VectorStoreRetriever
 from langchain_huggingface import HuggingFaceEmbeddings
 from document_loader import load_web_page
 from document_splitter import split_documents
+from document_loader import load_web_page
+from document_splitter import split_documents
 
 def save_vectorstore(
     chunks: List[Document],
