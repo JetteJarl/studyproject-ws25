@@ -5,12 +5,13 @@ vectorstore retriever and a configurable LLM.
 """
 
 import streamlit as st
-from langchain_core.vectorstores import VectorStoreRetriever
+from typing import Optional
+from langchain_core.vectorstores import VectorStoreRetriever, VectorStore
 
 from document_loader import load_web_page
 from document_splitter import split_documents
 from embed_model import get_embeddings_model
-from vector_database import save_vectorstore, load_vectorstore, get_retriever
+from vector_database import save_vectorstore, load_vectorstore, get_retriever, list_current_database
 from llm_model import MistralModel, LlmModel
 from user_interface import init_page
 
@@ -21,7 +22,8 @@ def load_system(
     model_name: str,
     all_llms: dict,
     embedder: str,
-    n_chunks: int
+    n_chunks: int,
+    vectorstore: Optional[VectorStore] = None,
 ) -> tuple[VectorStoreRetriever, LlmModel]:
     """
     Load the vectorstore, retriever, and llm based on the selected configuration
@@ -39,13 +41,14 @@ def load_system(
     client = all_llms[model_name]     # select corresponding client
     llm = client(model_name)      # load llm
 
-    embeddings_model, embedder  = get_embeddings_model(embedder)
+    embeddings_model, embedder = get_embeddings_model(embedder)
     datastore_name = "chroma_db"
 
-    # Attempt to load an existing vectorstore; if not found, ingest from the URL
-    vectorstore = load_vectorstore(embeddings_model, datastore_name)
+    # If a vectorstore was provided by the caller, prefer it. Otherwise try loading.
     if vectorstore is None:
-        st.error("There is no data store available. Look at the .README for more insights or contact the GitHub contributors.")
+        vectorstore = load_vectorstore(embeddings_model, datastore_name)
+        if vectorstore is None:
+            st.error("There is no data store available. Look at the .README for more insights or contact the GitHub contributors.")
 
     # Configure retriever (k controls number of top documents to fetch)
     retriever = get_retriever(vectorstore, n_chunks)
@@ -78,8 +81,23 @@ def main() -> None:
         st.session_state.embedder = default_embedder
     if "number_relevant_chunks" not in st.session_state:
         st.session_state.number_relevant_chunks = 3
+    # Load the vectorstore once at startup and cache it in session_state. This avoids
+    # reloading from disk repeatedly. We store it under the key 'vectorstore'.
+    if "vectorstore" not in st.session_state:
+        try:
+            # load_datastore uses the selected embedder
+            embeddings_model, _ = get_embeddings_model(st.session_state.embedder)
+            st.session_state.vectorstore = load_vectorstore(embeddings_model, "chroma_db")
+        except Exception:
+            st.session_state.vectorstore = None
     if "retriever" not in st.session_state or "llm" not in st.session_state:
-        retr, lm = load_system(st.session_state.selected_llm, all_llms, st.session_state.embedder, st.session_state.number_relevant_chunks)     # load system
+        retr, lm = load_system(
+            st.session_state.selected_llm,
+            all_llms,
+            st.session_state.embedder,
+            st.session_state.number_relevant_chunks,
+            vectorstore=st.session_state.get("vectorstore"),
+        )
         st.session_state.retriever = retr
         st.session_state.llm = lm
 
@@ -160,6 +178,7 @@ def main() -> None:
 
             if st.button("Apply Changes", disabled=not settings_changed):
                 # Copy tmp -> applied
+                old_embedder = st.session_state.embedder
                 st.session_state.selected_llm = st.session_state.selected_llm_tmp
                 st.session_state.number_relevant_chunks = st.session_state.number_relevant_chunks_tmp
                 st.session_state.embedder = st.session_state.embedder_tmp
@@ -169,12 +188,18 @@ def main() -> None:
                 # Reset the tmp_user_modified flag so tmp values will be synced
                 st.session_state.tmp_user_modified = False
 
+                # If the embedder changed, reload the vectorstore; otherwise reuse cached
+                if old_embedder != st.session_state.embedder:
+                    embeddings_model, _ = get_embeddings_model(st.session_state.embedder)
+                    st.session_state.vectorstore = load_vectorstore(embeddings_model, "chroma_db")
+
                 # Reload system with the chosen LLM and settings, store back into session_state
                 retriever, llm = load_system(
                     st.session_state.selected_llm,
                     all_llms,
                     st.session_state.embedder,
-                    st.session_state.number_relevant_chunks
+                    st.session_state.number_relevant_chunks,
+                    vectorstore=st.session_state.get("vectorstore"),
                 )
                 st.session_state.retriever = retriever
                 st.session_state.llm = llm
@@ -210,6 +235,19 @@ def main() -> None:
                         st.markdown("---")
         else:
             st.warning("Please enter some text.")
+
+    # Show a quick view of the stored database (if loaded)
+    rows = list_current_database(st.session_state.get("vectorstore"))
+    with st.expander("Stored documents (title / source)", expanded=False):
+        if rows:
+            import pandas as pd
+            df = pd.DataFrame(rows)
+            for col in ("title", "source"):
+                if col not in df.columns:
+                    df[col] = ""
+            st.dataframe(df[["title", "source"]])
+        else:
+            st.write("No documents found or unable to parse vectorstore contents.")
 
 if __name__ == "__main__":
     main()
