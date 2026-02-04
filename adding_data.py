@@ -1,5 +1,13 @@
 import sys
 import argparse
+import os
+
+os.environ.setdefault(
+    "USER_AGENT",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+)
+
 from pathlib import Path
 
 import pandas as pd
@@ -7,7 +15,6 @@ import pandas as pd
 from embed_model import get_embeddings_model
 from vector_database import load_vectorstore, add_url, list_current_database
 from urllib.parse import urlparse, urlunparse
-
 
 
 def read_urls_from_csv(path: str):
@@ -32,6 +39,8 @@ def normalize_url(u: str) -> str:
 
 def url_in_df_normalized(url: str, df: pd.DataFrame, col: str = "url") -> bool:
     target = normalize_url(url)
+    if col not in df.columns:
+        return False
     # apply normalization to column (vectorized-ish via .apply)
     return df[col].dropna().astype(str).apply(normalize_url).eq(target).any()
 
@@ -58,7 +67,9 @@ def main():
 
     # get current data in vectorstore
     current_data = list_current_database(vectorstore)
-    df = pd.DataFrame(current_data)  # ensures 'source' column exists
+    df = pd.DataFrame(current_data)
+
+    failed: list[tuple[str, str]] = []
 
     # ingest URLs one by one
     for url in urls:
@@ -67,11 +78,26 @@ def main():
             if url_in_df_normalized(url, df, col="source"):
                 print("Already ingested:", url, " --- skipping ---")
             else:
-                vectorstore = add_url(vectorstore, url, embeddings_model=embeddings, persist_directory=args.persist_dir)
+                vectorstore = add_url(
+                    vectorstore,
+                    url,
+                    embeddings_model=embeddings,
+                    persist_directory=args.persist_dir
+                )
 
             print("Ingested:", url)
         except Exception as e:
-            print("Failed to ingest", url, ":", e)
+            msg = str(e)
+            failed.append((url, msg))
+            print("Failed to ingest", url, ":", msg)
+
+    if failed:
+        out_path = Path("failed_ingest.csv")
+        # write a simple CSV without extra dependencies
+        out_lines = ["url,error"] + [f"{u},{err.replace(',', ';')}" for u, err in failed]
+        out_path.write_text("\n".join(out_lines), encoding="utf-8")
+        print(f"Wrote {len(failed)} failed URL(s) to {out_path.resolve()}")
+
 
 if __name__ == "__main__":
     main()
