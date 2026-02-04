@@ -1,13 +1,6 @@
 import sys
 import argparse
 import os
-
-os.environ.setdefault(
-    "USER_AGENT",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-    "(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
-)
-
 from pathlib import Path
 
 import pandas as pd
@@ -50,7 +43,17 @@ def main():
     parser.add_argument("csv", help="Path to CSV file with URLs (column 'url' or first column)")
     parser.add_argument("--emb-model", default="sentence-transformers/all-mpnet-base-v2")
     parser.add_argument("--persist-dir", default="chroma_db")
+    parser.add_argument(
+        "--user-agent",
+        default="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                "(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        help="User-Agent header to use for web requests (exported as USER_AGENT env var).",
+    )
     args = parser.parse_args()
+
+    # Ensure downstream loaders that look for USER_AGENT have something sensible.
+    if not os.environ.get("USER_AGENT"):
+        os.environ["USER_AGENT"] = args.user_agent
 
     csv_path = Path(args.csv)
     if not csv_path.exists():
