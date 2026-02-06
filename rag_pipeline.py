@@ -4,20 +4,34 @@ Lightweight Streamlit UI that wires an embedding model, a local
 vectorstore retriever and a configurable LLM. 
 """
 
+import os
+
+os.environ.setdefault(
+    "USER_AGENT",
+    "Mozilla/5.0 (X11; Linux x86_64) RAG-Research-Bot/1.0"
+)
+
+
 import streamlit as st
 from typing import Optional
 from langchain_core.vectorstores import VectorStoreRetriever, VectorStore
 
 from document_loader import load_web_page
-from document_splitter import split_documents
 from embed_model import get_embeddings_model
-from vector_database import save_vectorstore, load_vectorstore, get_retriever, list_current_database
+from vector_database import load_vectorstore, get_retriever, list_current_database
 from llm_model import MistralModel, LlmModel
 from user_interface import init_page
 
-from io import StringIO
+from urllib.parse import urlparse
 
 
+
+def is_valid_url(url):
+    try:
+        result = urlparse(url)
+        return all([result.scheme in ("http", "https"), result.netloc])
+    except:
+        return False
 
 
 def load_system(
@@ -219,27 +233,30 @@ def main() -> None:
     
     input_mode = st.radio(
         "How would you like to provide the content?",
-        ["Text / Social Media Post", "Article (File Upload)"]
+        ["Text / Social Media Post", "Article (Insert URL)"]
     )   
 
-    st.subheader("📝 Option 1: Analyze a statement or post")
+    if input_mode == "Text / Social Media Post":
+        st.subheader("📝 Analyze a statement or post")
 
-    text_input = st.text_area(
-        "Paste a statement you want to fact-check",
-        value="Climate change is not real. It is made up by communists to destroy the world economy.",
-        help="Copy&paste a comment, a post, an entire (fake) news article etc. from social media or somewhere else.",
-        disabled=(input_mode != "Text / Social Media Post")
-    )
+        text_input = st.text_area(
+            "Paste a statement you want to fact-check",
+            value="Climate change is not real. It is made up by communists to destroy the world economy.",
+            help="Copy&paste a comment, a post, an entire (fake) news article etc. from social media or somewhere else.",
+            disabled=(input_mode != "Text / Social Media Post")
+        )
 
-    st.subheader("📄 Option 2: Analyze an article")
+    elif input_mode == "Article (Insert URL)":
 
-    uploaded_file = st.file_uploader(
-        "Upload an article (PDF/HTML)", 
-        type=["pdf","html"],
-        disabled=(input_mode != "Article (File Upload)")
-    )
+        st.subheader("📄 Analyze an article")
+
+        url_input = st.text_area(
+            "Insert a URL to a news article you want to check",
+            help="Enter the URL to an article.",
+            disabled=(input_mode != "Article (Insert URL)")
+        )
+
     
-
     # Trigger LLM processing of input
     if st.button("Generate Counterstatement", 
                 help="Sends your input to an llm to generate a counterstatement"):
@@ -249,7 +266,7 @@ def main() -> None:
                 # Read retriever/llm from session_state for generating answers
                 retriever = st.session_state.get("retriever")
                 llm = st.session_state.get("llm")
-                answer, context = llm.generate_answer(query, retriever)
+                answer, context = llm.generate_answer(text_input, retriever)
                 st.write("Answer:")
                 st.write(answer)
                 with st.expander("Show Retrieved Context from Local Vector Database"):
@@ -259,15 +276,26 @@ def main() -> None:
                         st.markdown(f"*Source:* {doc.metadata['source']}")
                         st.markdown("---")
 
-        if uploaded_file and input_mode == "Article (File Upload)":
-                stringio = StringIO(uploaded_file.getvalue().decode("utf-8"))
-                file_as_string = stringio.read()
+        elif url_input and input_mode == "Article (Insert URL)":
+                # verify input
+                if not is_valid_url(url_input):
+                    st.error("Please insert a valid URL.")
+
+                # fetch article from website
+                html_document = load_web_page(url_input)
+                article = html_document[0].page_content
+
+                print(article)
+
+                if not article:
+                    raise ValueError("Article was not extracted.")
+
 
                 with st.spinner("Parsing file and generating answer..."):
                     # Read retriever/llm from session_state for generating answers
                     retriever = st.session_state.get("retriever")
                     llm = st.session_state.get("llm")
-                    answer, context = llm.generate_answer(file_as_string, retriever)
+                    answer, context = llm.generate_answer(article, retriever)
                     st.write("Answer:")
                     st.write(answer)
                     with st.expander("Show Retrieved Context from Local Vector Database"):

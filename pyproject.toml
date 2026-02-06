@@ -27,4 +27,5 @@ dependencies = [
     "sentence-transformers>=5.1.2",
     "streamlit>=1.50.0",
     "transformers>=4.56,<4.58", # solved ragas compatibility issue
+    "trafilatura>=2.0.0",
 ]

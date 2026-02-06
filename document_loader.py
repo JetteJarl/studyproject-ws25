@@ -15,8 +15,9 @@ def load_web_page(url: str) -> List[Document]:
     Raises:
         requests.HTTPError: If the HTTP request fails with a bad status.
     """
+
     # Download the page contents
-    loader = WebBaseLoader(url, raise_for_status=True)
+    loader = WebBaseLoader(url, raise_for_status=True)  # TODO: Add fallbacks
     document = loader.load()
     return document
 
