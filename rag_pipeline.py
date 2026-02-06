@@ -285,10 +285,8 @@ def main() -> None:
                 html_document = load_web_page(url_input)
                 article = html_document[0].page_content
 
-                print(article)
-
                 if not article:
-                    raise ValueError("Article was not extracted.")
+                    st.error("Something went wrong while loading the article.")
 
 
                 with st.spinner("Parsing file and generating answer..."):
