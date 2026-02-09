@@ -236,6 +236,9 @@ def main() -> None:
         ["Text / Social Media Post", "Article (Insert URL)"]
     )   
 
+    text_input = None
+    url_input = None
+
     if input_mode == "Text / Social Media Post":
         st.subheader("📝 Analyze a statement or post")
 
