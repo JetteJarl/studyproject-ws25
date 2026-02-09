@@ -26,3 +26,11 @@ If no vector database exists, the script creates a new one. Any data that alread
 Make sure the CSV file contains a column named "url" with the links to the websites that should be ingested.
 
 In the current database we used a chunk size of 1000 and overlap of 200. The encoder model we used is sentence-transformers/all-mpnet-base-v2 from Huggingface.
+
+
+## Troubleshooting
+1) **For old GPUs** Deactivate/Hide them from Pytorch
+
+    GPUs that are not supported by CUDA/Pytorch might result in bugs since the system will try to use the local GPU to run the embeddings model. 
+
+    You can add this line ``os.environ["CUDA_VISIBLE_DEVICES"] = ""`` in the beginning of the ``rag_pipeline.py`` script to do so.
