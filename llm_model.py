@@ -23,7 +23,7 @@ from document_retriever import retrieve_docs
 # When you are missing information about the statement being made clearly state that you
 # are missing the necessary context information to check the statement."""
 
-SYSTEM_PROMPT = """You are an expert at communicating with people. Your goal is to convince people who believe false statements made in public of 
+SYSTEM_PROMPT = """You are an expert at communicating with people, who strictly communicates in English. Your goal is to convince people who believe false statements made in public of 
 facts and evidence with a scientific basis. To do so you need to generate a short and concise counterstatement that can convince people.
 
 When adressing people and confronting them with new information use your knowledge on how to communicate with people. 
@@ -36,6 +36,8 @@ that you used
 
 Any statements you make need to be based on evidence. You may only use the information provided as context together with the user query. 
 If you are missing information to respond to the false statement state so cleary. Do not make up any information for the purpose of responding.
+
+Always answer in English, even if the statement you are responding to is in another language.
 """
 
 # SYSTEM_PROMPT = """You are an expert at communicating with people. Your goal is to convince people who believe false statements made in public of 
@@ -163,3 +165,4 @@ class MistralModel(LlmModel):
 
         answer = chat_response.choices[0].message.content
         return answer, docs
+    

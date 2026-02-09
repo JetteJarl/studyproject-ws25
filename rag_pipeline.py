@@ -4,18 +4,34 @@ Lightweight Streamlit UI that wires an embedding model, a local
 vectorstore retriever and a configurable LLM. 
 """
 
+import os
+
+os.environ.setdefault(
+    "USER_AGENT",
+    "Mozilla/5.0 (X11; Linux x86_64) RAG-Research-Bot/1.0"
+)
+
+
 import streamlit as st
 from typing import Optional
 from langchain_core.vectorstores import VectorStoreRetriever, VectorStore
 
 from document_loader import load_web_page
-from document_splitter import split_documents
 from embed_model import get_embeddings_model
-from vector_database import save_vectorstore, load_vectorstore, get_retriever, list_current_database
+from vector_database import load_vectorstore, get_retriever, list_current_database
 from llm_model import MistralModel, LlmModel
 from user_interface import init_page
 
+from urllib.parse import urlparse
 
+
+
+def is_valid_url(url):
+    try:
+        result = urlparse(url)
+        return all([result.scheme in ("http", "https"), result.netloc])
+    except:
+        return False
 
 
 def load_system(
@@ -67,7 +83,8 @@ def main() -> None:
     # Setting variables
     all_llms = {
         "open-mixtral-8x7b" : MistralModel,
-        "mistral-small-2506": MistralModel
+        "mistral-small-2506": MistralModel,
+        "mistral-large-2512": MistralModel
     }
 
 
@@ -208,23 +225,51 @@ def main() -> None:
     # Display llm and no of chunks
     selected_llm = st.session_state.get("selected_llm")
     n_chunks = st.session_state.get("number_relevant_chunks")
+    st.subheader("System Configuration:")
     st.markdown(f"**Model:** {selected_llm} &nbsp;&nbsp; **Chunks:** {n_chunks}")
 
-    st.markdown("**Input:**")
-    query = st.text_area(
-        label="Say something...",
-        value="Climate change is not real. It is made up by communists to destroy the world economy.",
-        help="Copy&paste a comment, a post, an entire (fake) news article etc. from social media or somewhere else."
-    )
+    # Handle user input
+    st.header("Input:")
+    
+    input_mode = st.radio(
+        "How would you like to provide the content?",
+        ["Text / Social Media Post", "Article (Insert URL)"]
+    )   
 
-    if st.button("Generate Answer", 
-                 help="Sends your input to an llm to generate a counterstatement"):
-        if query:
-            with st.spinner("Generating answer..."):
+    text_input = None
+    url_input = None
+
+    if input_mode == "Text / Social Media Post":
+        st.subheader("📝 Analyze a statement or post")
+
+        text_input = st.text_area(
+            "Paste a statement you want to fact-check",
+            value="Climate change is not real. It is made up by communists to destroy the world economy.",
+            help="Copy&paste a comment, a post, an entire (fake) news article etc. from social media or somewhere else.",
+            disabled=(input_mode != "Text / Social Media Post")
+        )
+
+    elif input_mode == "Article (Insert URL)":
+
+        st.subheader("📄 Analyze an article")
+
+        url_input = st.text_area(
+            "Insert a URL to a news article you want to check",
+            help="Enter the URL to an article.",
+            disabled=(input_mode != "Article (Insert URL)")
+        )
+
+    
+    # Trigger LLM processing of input
+    if st.button("Generate Counterstatement", 
+                help="Sends your input to an llm to generate a counterstatement"):
+        
+        if text_input and input_mode == "Text / Social Media Post":
+            with st.spinner("Parsing text and generating answer..."):
                 # Read retriever/llm from session_state for generating answers
                 retriever = st.session_state.get("retriever")
                 llm = st.session_state.get("llm")
-                answer, context = llm.generate_answer(query, retriever)
+                answer, context = llm.generate_answer(text_input, retriever)
                 st.write("Answer:")
                 st.write(answer)
                 with st.expander("Show Retrieved Context from Local Vector Database"):
@@ -233,8 +278,38 @@ def main() -> None:
                         st.markdown(doc.page_content)
                         st.markdown(f"*Source:* {doc.metadata['source']}")
                         st.markdown("---")
+
+        elif url_input and input_mode == "Article (Insert URL)":
+                # verify input
+                if not is_valid_url(url_input):
+                    st.error("Please insert a valid URL.")
+
+                # fetch article from website
+                html_document = load_web_page(url_input)
+                article = html_document[0].page_content
+
+                if not article:
+                    st.error("Something went wrong while loading the article.")
+
+
+                with st.spinner("Parsing file and generating answer..."):
+                    # Read retriever/llm from session_state for generating answers
+                    retriever = st.session_state.get("retriever")
+                    llm = st.session_state.get("llm")
+                    answer, context = llm.generate_answer(article, retriever)
+                    st.write("Answer:")
+                    st.write(answer)
+                    with st.expander("Show Retrieved Context from Local Vector Database"):
+                        for i, doc in enumerate(context, 1):
+                            st.markdown(f"**Relevant Chunk {i}:**")
+                            st.markdown(doc.page_content)
+                            st.markdown(f"*Source:* {doc.metadata['source']}")
+                            st.markdown("---")
+
         else:
-            st.warning("Please enter some text.")
+            st.warning("Please enter some text or Upload a file.")
+
+
 
     # Show a quick view of the stored database (if loaded)
     rows = list_current_database(st.session_state.get("vectorstore"))
