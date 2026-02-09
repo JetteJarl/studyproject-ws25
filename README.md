@@ -12,7 +12,7 @@
   cd <your-repo-folder>
 ```
 
-2)** Initialize UV and Install requirements**
+2) **Initialize UV and Install requirements**
 ```bash
   uv init
   uv install
@@ -20,19 +20,29 @@
 
 3) **(Optional) Add Mistral API Key**
 
-When you are using the repository with the native LLMs we provide, you will need to setup a Mistral API key in your system. 
-If you prefer using another provider you can find instructions on how to add a new model below.
+    When you are using the repository with the native LLMs we provide, you will need to setup a Mistral API key in your system. 
+    If you prefer using another provider you can find instructions on how to add a new model below.
 
-```bash
-export MISTRAL_API_KEY="your_api_key_here"
-```
+    ```bash
+    export MISTRAL_API_KEY="your_api_key_here"
+    ```
+
+    OR
+
+    Create an .env file (file must be really named ".env", dont forget the dot!) without file ending
+
+    Enter this: MISTRAL_API_KEY="your_api_key_here"
+
+    **IMPORTANT**: Never push the .env file or else the key might get leaked!
+
+    Keep it as a local file.
 
 4) **Run Streamlit Application**
 
-```bash
-streamlit run rag_pipeline.py
-```
-Open your browser to view the application.
+    ```bash
+    streamlit run rag_pipeline.py
+    ```
+    Open your browser to view the application. 
 
 
 ## Model Configuration
