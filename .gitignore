@@ -227,7 +227,7 @@ doc.pdf
 .vscode/
 
 # Chroma database 
-#/chroma_db/        # comment in if db gets too large
+/chroma_db/       
 
 # Evaluation
 /eval/

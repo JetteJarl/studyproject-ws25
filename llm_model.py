@@ -157,9 +157,6 @@ class MistralModel(LlmModel):
             }
         ]
 
-        # for debugging:
-        print(prompt)
-
         print("Sending request...")
         chat_response = self.client.chat.complete(
             model= self.model,
