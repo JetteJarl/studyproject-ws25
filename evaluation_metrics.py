@@ -15,8 +15,7 @@ from ragas import evaluate
 from ragas.metrics import (
     ContextPrecision,
     ContextRecall,
-    ContextEntityRecall,
-    NoiseSensitivity
+    ContextEntityRecall
 )
 # Generation metrics
 from ragas.metrics import (
@@ -110,7 +109,6 @@ def evaluate_with_ragas(df: pd.DataFrame, llm: str, embedder: str) -> pd.DataFra
         # Retrieval metrics
         ContextPrecision(llm=llm), # Measures how many of the retrieved context passages were actually relevant to the answer.
         ContextRecall(llm=llm), # Measures how many relevant context passages the retriever successfully found out of all possible relevant ones.
-        NoiseSensitivity(llm=llm), # Measures how much irrelevant or noisy context negatively affects the model’s answer.
         ContextEntityRecall(llm=llm), # Checks whether the retrieved context contains all important entities needed to answer the query correctly.
         # Generation metrics
         Faithfulness(llm=llm), # Evaluates whether the answer is grounded in the retrieved context without hallucinating new facts.
