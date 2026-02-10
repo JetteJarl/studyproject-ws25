@@ -168,7 +168,7 @@ def main():
     )
     args = parser.parse_args()
 
-    df = load_climate_fever_refutes_split(sample_size=1)
+    df = load_climate_fever_refutes_split()
     print("Using", args.number_relevant_chunks, "chunks.")
     llm_name = args.llm_name
     llm = MistralModel(llm_name)
