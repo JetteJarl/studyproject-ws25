@@ -6,23 +6,15 @@ from llm_model import LlmModel
 
 # Build a lightweight reference text. If you can’t extract evidence sentences,
 # at least encode the label in the ground truth to help 'correctness'.
-def _ref_text(row) -> str:
+def load_climate_fever_refutes_split(sample_size: int = 100, seed: int = 7) -> pd.DataFrame:
     """
-    Build a lightweight reference/evidence string from a FEVER row.
+    Load the Climate-FEVER REFUTES-only split (preprocessed) and prepare inputs for evaluation.
 
-    Parameters:
-        row: A pandas Series containing at least a "label" field.
-
-    Returns:
-        A short textual reference encoding the FEVER label, suitable as
-        ground truth guidance for correctness-style metrics.
-    """
-    evidence = f"The claim is {row['label'].lower()} according to Wikipedia evidence."
-    return evidence
-
-def load_fever_split(sample_size: int = 200, seed: int = 7) -> pd.DataFrame:
-    """
-    Load the local FEVER dev split and prepare inputs for evaluation.
+    This function reads ``data/climate-fever-refutes-groundtruth.jsonl`` which already contains:
+      - user_input: the refuted claim text
+      - ground_truth: concatenated REFUTES evidence sentences (top-k)
+      - claim_label: "REFUTES"
+      - claim_id: identifier
 
     Parameters:
         sample_size: Maximum number of rows to keep (None or 0 to keep all).
@@ -30,26 +22,34 @@ def load_fever_split(sample_size: int = 200, seed: int = 7) -> pd.DataFrame:
 
     Returns:
         DataFrame with columns:
-            - user_input: user claim text.
-            - ground_truth: lightweight evidence text or label-based reference.
-            - label: FEVER label in {"SUPPORTS", "REFUTES"}.
+            - user_input: user claim text (str)
+            - ground_truth: reference text built from refuting evidence (str)
+            - label: claim label (always "REFUTES" here)
+            - claim_id: id string (optional but useful for debugging)
     """
-    # Newer versions of dataset contain a bug that prevents loading datasets remotely:
-    # https://github.com/huggingface/datasets/issues/7693
-    # Downloaded the data manually from https://fever.ai/dataset/fever.html and saved it locally
-    df = pd.read_json("data/shared_task_dev.jsonl", lines=True)
-    # Keep only entries with label != NEI
-    df = df[df["label"].isin(["SUPPORTS", "REFUTES"])].copy()
-    # Rename column because Ragas expects "user_input"
-    df["user_input"] = df["claim"].astype(str)
-    df["ground_truth"] = df.apply(_ref_text, axis=1)
+    df = pd.read_json("data/climate-fever-refutes-groundtruth.jsonl", lines=True)
+
+    # Keep only REFUTES rows (should already be true, but keeps it robust)
+    df = df[df["claim_label"].astype(str).eq("REFUTES")].copy()
+
+    # Ensure the column names match what the rest of the pipeline expects
+    # Ragas expects "user_input" and "ground_truth".
+    df["user_input"] = df["user_input"].astype(str)
+    df["ground_truth"] = df["ground_truth"].astype(str)
+
+    # Keep a "label" column for compatibility with existing code paths / reporting
+    df["label"] = df["claim_label"].astype(str)
 
     # Sample for a quick evaluation run
     if sample_size and len(df) > sample_size:
+        print("Evaluating", sample_size, "samples (out of", len(df), "total samples)...")
         df = df.sample(n=sample_size, random_state=seed)
 
-    # Keep only necessary columns
-    df = df[["user_input", "ground_truth", "label"]].reset_index(drop=True)
+    # Keep only necessary columns (add claim_id for traceability)
+    df = df[["claim_id", "user_input", "ground_truth", "label"]].reset_index(drop=True)
+
+    # Turn claim IDs into integers
+    # df["claim_id"] = pd.to_numeric(df["claim_id"], errors="coerce").astype("Int64")
     return df
 
 def _unpack_answer_and_contexts(result: tuple[object, object]) -> tuple[str, object]:
