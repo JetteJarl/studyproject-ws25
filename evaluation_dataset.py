@@ -46,10 +46,8 @@ def load_climate_fever_refutes_split(sample_size: int = 100, seed: int = 7) -> p
         df = df.sample(n=sample_size, random_state=seed)
 
     # Keep only necessary columns (add claim_id for traceability)
-    df = df[["claim_id", "user_input", "ground_truth", "label"]].reset_index(drop=True)
+    df = df[["user_input", "ground_truth", "label"]].reset_index(drop=True)
 
-    # Turn claim IDs into integers
-    # df["claim_id"] = pd.to_numeric(df["claim_id"], errors="coerce").astype("Int64")
     return df
 
 def _unpack_answer_and_contexts(result: tuple[object, object]) -> tuple[str, object]:

@@ -138,8 +138,8 @@ def main():
     df, llm, embedding_model = run_pipeline_on_querys(
         df, llm, llm_name, embedding_model, retriever, number_relevant_chunks
     )
-    # evaluate_with_ragas expects model identifiers (strings), not instantiated
-    # objects. Pass the original llm_name and embedder identifier.
+    # evaluate_with_ragas expects model identifiers (strings), not instantiated objects.
+    # Pass the original llm_name and embedder identifier.
     per_row = evaluate_with_ragas(df, llm_name, embedder)
 
     # Save detailed results
