@@ -37,14 +37,30 @@ from embed_model import get_embeddings_model
 
 def _append_average_row(per_row: pd.DataFrame) -> pd.DataFrame:
     """
-    Append a final row that contains the average (mean) of each numeric metric column.
+    Append a final summary row containing the mean of each numeric metric column.
 
-    This is helpful for quickly inspecting overall performance without having to
-    compute the mean externally.
+    This helper is intended for evaluation tables where each row corresponds to a
+    single sample (claim) and each column corresponds to a metric score. It computes
+    the column-wise arithmetic mean over all *numeric* columns and appends the result
+    as a new last row. This makes it easy to inspect overall performance in the
+    exported CSV without calculating averages separately.
+
+    Args:
+        per_row:
+            DataFrame containing per-sample metric outputs (typically produced by
+            ``ragas.evaluate(...).to_pandas()``). Expected to have one row per sample
+            and one column per metric.
+
+    Returns:
+        A new DataFrame with the same columns as ``per_row`` plus (optionally) a
+        ``"__row_type__"`` column, and with one extra final row containing the
+        averaged metric values.
 
     Notes:
-        - Only numeric columns are averaged. Non-numeric columns (if any) are left empty.
-        - Adds a helper column '__row_type__' to clearly label the aggregated row.
+        - If ``per_row`` is empty, the appended row will contain blanks for all
+          columns because there are no values to average.
+        - If a numeric column contains NaNs, pandas will ignore them when computing
+          the mean (default behavior).
     """
     out = per_row.copy()
 
@@ -136,7 +152,7 @@ def main():
     retriever = get_retriever(vectorstore, number_relevant_chunks)
 
     df, llm, embedding_model = run_pipeline_on_querys(
-        df, llm, llm_name, embedding_model, retriever, number_relevant_chunks
+        df, llm, embedding_model, retriever
     )
     # evaluate_with_ragas expects model identifiers (strings), not instantiated objects.
     # Pass the original llm_name and embedder identifier.
