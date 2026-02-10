@@ -3,6 +3,7 @@
 # System: latency, source quality, citation quality, toxicity/safety, robustness
 # Human: helpfulness, truthfulness, persuasiveness, bias/neutrality, tone, readability, structure
 # Methods: evaluation dataset, LLM as a judge, human evaluation
+import argparse
 import csv
 from pathlib import Path
 
@@ -135,13 +136,46 @@ def main():
       1) Load and prepare the dataset.
       2) Run the RAG pipeline to produce answers and contexts.
       3) Evaluate outputs with Ragas and save results.
+
+      This entry point supports CLI arguments for:
+      - LLM model name (required)
+      - number of retrieved chunks (optional, default: 3)
+      - sample size (optional, default: 100)
+      - output file path (optional)
     """
+    parser = argparse.ArgumentParser(description="Run RAGAS evaluation on Climate-FEVER REFUTES subset.")
+    parser.add_argument(
+        "--llm-name",
+        required=True,
+        help="Generator model name/identifier (e.g., open-mixtral-8x7b, mistral-small-2506).",
+    )
+    parser.add_argument(
+        "--number-relevant-chunks",
+        type=int,
+        default=3,
+        help="Top-k number of context chunks to retrieve per query (default: 3).",
+    )
+    parser.add_argument(
+        "--sample-size",
+        type=int,
+        default=100,
+        help="How many dataset rows to evaluate (default: 100). Use 0 to evaluate all.",
+    )
+    parser.add_argument(
+        "--output",
+        default=None,
+        help="Optional output path. If not provided, a name is generated under eval/.",
+    )
+    args = parser.parse_args()
+
     df = load_climate_fever_refutes_split(sample_size=1)
-    llm_name = "open-mixtral-8x7b" # TODO: should enter name via cli and not hardcode!
+    print("Using", args.number_relevant_chunks, "chunks.")
+    llm_name = args.llm_name
     llm = MistralModel(llm_name)
+
     embedder = "sentence-transformers/all-mpnet-base-v2"
     embedding_model, embedder  = get_embeddings_model(embedder)
-    number_relevant_chunks = 3
+    number_relevant_chunks = args.number_relevant_chunks
 
     # Attempt to load an existing vectorstore; if not found, ingest from the URL
     vectorstore = load_vectorstore(embedding_model, "chroma_db")
@@ -160,15 +194,17 @@ def main():
 
     # Save detailed results
     Path("eval").mkdir(parents=True, exist_ok=True)
+    out_path = args.output or f"eval/ragas_climate_fever_{llm_name}_k{number_relevant_chunks}.csv"
+
     per_row.to_csv(
-        "eval/ragas_climate_fever_mistral.csv",
+        out_path,
         index=False,
         header=True,
         sep=";",
         encoding="utf-8-sig",
         quoting=csv.QUOTE_MINIMAL,
     )
-    print("Saved metrics results")
+    print(f"Saved metrics results to {out_path}")
 
 
 if __name__ == "__main__":
