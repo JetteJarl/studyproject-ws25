@@ -14,17 +14,13 @@ from ragas import evaluate
 # Retrieval metrics
 from ragas.metrics import (
     ContextPrecision,
-    ContextRecall,
-    ContextEntityRecall
+    ContextRecall
 )
 # Generation metrics
 from ragas.metrics import (
     Faithfulness,
     ResponseGroundedness,
-    AnswerAccuracy,
-    FactualCorrectness,
     AnswerRelevancy,
-    ContextRelevance,
     SemanticSimilarity
 )
 
@@ -109,14 +105,10 @@ def evaluate_with_ragas(df: pd.DataFrame, llm: str, embedder: str) -> pd.DataFra
         # Retrieval metrics
         ContextPrecision(llm=llm), # Measures how many of the retrieved context passages were actually relevant to the answer.
         ContextRecall(llm=llm), # Measures how many relevant context passages the retriever successfully found out of all possible relevant ones.
-        ContextEntityRecall(llm=llm), # Checks whether the retrieved context contains all important entities needed to answer the query correctly.
         # Generation metrics
         Faithfulness(llm=llm), # Evaluates whether the answer is grounded in the retrieved context without hallucinating new facts.
         ResponseGroundedness(llm=llm), # Measures how well each part of the answer can be directly supported by the provided context passages.
-        AnswerAccuracy(llm=llm), # Compares the answer directly to the ground-truth answer to measure factual correctness.
-        FactualCorrectness(llm=llm), # Checks whether the answer's factual claims are correct relative to the ground truth (precision/recall/f1).
         AnswerRelevancy(llm=llm, embeddings=embedder), # Measures how relevant the generated answer is to the user’s original question.
-        ContextRelevance(llm=llm), # Checks whether the retrieved context is actually helpful for answering the question.
         SemanticSimilarity(embeddings=embedder) # Measures how semantically similar the generated answer is to the ground-truth answer.
     ]
 
