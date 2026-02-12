@@ -74,7 +74,35 @@ To add a new model do the following
 
      Register the llm by adding the model name and model class to the dictionary ``all_llms``
 
+## Evaluation (with Ragas)
 
+This project includes an evaluation script that runs the RAG pipeline on the Climate-FEVER REFUTES subset and computes Ragas metrics.
+
+### Prerequisites
+- A populated vector database in `chroma_db/` (see **Adding Data** below)
+- If using Mistral models: `MISTRAL_API_KEY` must be set (see **(Optional) Add Mistral API Key** above)
+
+### Metrics used (Ragas)
+The evaluation script computes the following Ragas metrics:
+- **Faithfulness/Repsonse Groundedness:** whether the `answer` is supported by the retrieved `contexts` (checks for hallucinations vs. context-grounded output).
+- **Answer Relevancy:** whether the `answer` is relevant to the `user_input` claim.
+- **Context Precision:** whether the retrieved `contexts` are relevant (signal vs. noise in retrieved chunks).
+- **Context Recall:** whether the retrieved `contexts` cover the information needed to answer according to `ground_truth`.
+- **Semantic Similarity:** similarity of the generated `answer` compared to the `ground_truth` reference.
+
+### Run evaluation
+The evaluation script is `evaluation_metrics.py` and is meant to be run via CLI.
+
+**Required argument**
+- `--llm-name`: the model name/identifier to use (e.g. `open-mixtral-8x7b`)
+
+**Optional arguments**
+- `--number-relevant-chunks`: top-k retrieved chunks per query (default: `3`)
+- `--sample-size`: number of rows to evaluate (default: `100`, use `0` for all)
+- `--output`: output path for the CSV file (optional)
+
+Examples:
+``uv run python evaluation_metrics.py --llm-name open-mixtral-8x7b``
 
 ## Adding Data
 To add data to the data base you can use the script *adding_data.py* using the command
